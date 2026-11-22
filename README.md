@@ -55,10 +55,12 @@ DSH 侧栏/工具适配器在独立仓库：
 ```bash
 git clone https://github.com/0801ljw/dutang-dsh-plugin.git
 cd dutang-dsh-plugin
-./scripts/install.sh web
+./scripts/install.sh desktop   # DSH Desktop
+# 或
+./scripts/install.sh web       # DSH Web
 ```
 
-或在 DSH Web 的 **Plugins → Add plugin** 选择本地插件目录。插件需要可达的 fusion 服务（桌面 App 或 Linux 实例）。
+或在 DSH 的 **Plugins → Add plugin** 选择本地插件目录。插件需要可达的 fusion 服务（桌面 App 或 Linux 实例）。
 
 ## 文档
 
