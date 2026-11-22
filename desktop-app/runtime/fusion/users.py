@@ -86,6 +86,15 @@ class UserStore:
                       "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
         _atomic_write(self.path, {"users": users})
 
+    def set_primary_workspace(self, name: str, workspace: str) -> None:
+        users = self._load()
+        for user in users:
+            if user["name"] == name:
+                user["workspace"] = workspace
+                _atomic_write(self.path, {"users": users})
+                return
+        raise AuthError("user not found")
+
     def remove_user(self, name: str) -> None:
         users = [u for u in self._load() if u["name"] != name]
         _atomic_write(self.path, {"users": users})

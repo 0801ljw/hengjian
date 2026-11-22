@@ -831,16 +831,46 @@ function boot() {
     } catch (error) { status("workspace-status", error.message, true); }
   }
 
+  async function leaveWorkspace() {
+    try {
+      await api("/api/workspace/leave", { method: "POST", body: "{}" });
+      location.reload();
+    } catch (error) { status("workspace-status", error.message, true); }
+  }
+
+  async function setMemberRole(name, role) {
+    try {
+      await api(`/api/workspace/members/${encodeURIComponent(name)}/role`, {
+        method: "POST", body: JSON.stringify({ role }),
+      });
+      await refreshMembers();
+    } catch (error) { status("members-status", error.message, true); }
+  }
+
+  async function transferWorkspaceOwner(name) {
+    if (!confirm(`把 Workspace owner 转让给 ${name}？`)) return;
+    try {
+      await api("/api/workspace/transfer", {
+        method: "POST", body: JSON.stringify({ member: name }),
+      });
+      location.reload();
+    } catch (error) { status("members-status", error.message, true); }
+  }
+
   async function refreshMembers() {
     const list = $("members-list");
     if (!list) return;
     list.replaceChildren();
     try {
       const data = await api("/api/workspace/members");
+      const selfMember = (data.members || []).find(member => member.name === me?.name);
+      const selfRole = selfMember?.workspace_role;
+      const canManage = me?.auth === "session" && (me.role === "admin" || selfRole === "owner" || selfRole === "admin");
+      const isOwner = data.workspace?.owner === me?.name;
       for (const member of data.members || []) {
         const item = text("li", "");
-        item.append(text("strong", member.name), text("span", ` · ${member.role}${member.owner ? " · owner" : ""}`));
-        if (me?.auth === "session" && me.role === "admin" && member.name !== me.name) {
+        item.append(text("strong", member.name), text("span", ` · ${member.role}${member.workspace_role ? " / " + member.workspace_role : ""}${member.owner ? " · owner" : ""}`));
+        if (canManage && member.name !== me.name) {
           const remove = text("button", "移除");
           remove.type = "button";
           remove.className = "btn btn-quiet btn-small";
@@ -851,6 +881,19 @@ function boot() {
             } catch (error) { status("members-status", error.message, true); }
           });
           item.append(text("span", " "), remove);
+        }
+        if (canManage && !member.owner) {
+          const admin = text("button", "设为 admin");
+          admin.type = "button"; admin.className = "btn btn-quiet btn-small";
+          admin.addEventListener("click", () => setMemberRole(member.name, "admin"));
+          const plain = text("button", "设为 member");
+          plain.type = "button"; plain.className = "btn btn-quiet btn-small";
+          plain.addEventListener("click", () => setMemberRole(member.name, "member"));
+          const transfer = text("button", "转让 owner");
+          transfer.type = "button"; transfer.className = "btn btn-quiet btn-small";
+          transfer.addEventListener("click", () => transferWorkspaceOwner(member.name));
+          item.append(text("span", " "), admin, plain);
+          if (isOwner) item.append(transfer);
         }
         list.append(item);
       }
@@ -1199,6 +1242,7 @@ function boot() {
   $("pricing-save").addEventListener("click", savePricing);
   $("workspace-switch").addEventListener("click", switchWorkspace);
   $("workspace-join").addEventListener("click", joinWorkspace);
+  $("workspace-leave").addEventListener("click", leaveWorkspace);
   $("member-add").addEventListener("click", addMember);
   $("member-invite").addEventListener("click", createWorkspaceInvite);
   $("launcher-pair").addEventListener("click", pairLauncher);

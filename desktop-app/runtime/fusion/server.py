@@ -866,6 +866,50 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:
                 return self._send(400, {"error": str(exc)})
 
+        if path == "/api/workspace/leave" and method == "POST":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            try:
+                from .workspaces import get, leave, membership, user_workspaces
+                if membership(self.server.store.home, workspace_id, session["name"]) != "owner":
+                    remaining = [item for item in user_workspaces(
+                        self.server.store.home, session["name"], workspace_id)
+                        if item["id"] != workspace_id]
+                    if not remaining:
+                        return self._send(409, {"error": "join another workspace before leaving the last one"})
+                    leave(self.server.store.home, workspace_id, session["name"])
+                    next_workspace = remaining[0]["id"]
+                    self.server.users.set_primary_workspace(session["name"], next_workspace)
+                    self.server.users.switch_workspace(self._session_token, next_workspace)
+                    return self._send(200, {"ok": True, "workspace": next_workspace})
+                return self._send(409, {"error": "owner cannot leave; transfer ownership first"})
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+        if path == "/api/workspace/transfer" and method == "POST":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            try:
+                data = json.loads(body or b"{}")
+                from .workspaces import transfer_owner
+                meta = transfer_owner(self.server.store.home, workspace_id, session["name"],
+                                      str(data.get("member") or ""))
+                return self._send(200, {"workspace": meta})
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+        if path.startswith("/api/workspace/members/") and path.endswith("/role") and method == "POST":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            parts = path.strip("/").split("/")
+            if len(parts) != 5:
+                return self._send(400, {"error": "invalid member path"})
+            try:
+                data = json.loads(body or b"{}")
+                from .workspaces import set_role
+                return self._send(200, set_role(self.server.store.home, workspace_id,
+                                                session["name"], parts[3], data.get("role", "member")))
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+
         if path == "/api/workspace" and method == "GET":
             if not session:
                 return self._send(403, {"error": "human session required"})

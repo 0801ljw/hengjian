@@ -97,14 +97,6 @@ def members(instance, workspace):
     with _conn(instance) as conn:
         rows = conn.execute("""SELECT user,role FROM workspace_members WHERE workspace=?
             ORDER BY joined_at""", (workspace,)).fetchall()
-    if not rows:
-        rows = [(user["name"], "owner" if user["name"] == meta.get("owner") else "member")
-                for user in by_name.values() if user.get("workspace") == workspace]
-    else:
-        seen = {row[0] for row in rows}
-        for user in by_name.values():
-            if user.get("workspace") == workspace and user["name"] not in seen:
-                rows.append((user["name"], "owner" if user["name"] == meta.get("owner") else "member"))
     result = []
     for name, role in rows:
         user = by_name.get(name)
@@ -146,3 +138,49 @@ def remove_member(instance, workspace, user):
         cur = conn.execute("DELETE FROM workspace_members WHERE workspace=? AND user=?",
                            (workspace, user))
         return cur.rowcount == 1
+
+
+def leave(instance, workspace, user):
+    meta = get(instance, workspace)
+    if not meta:
+        raise ValueError("workspace not found")
+    if meta.get("owner") == user:
+        raise ValueError("owner cannot leave; transfer ownership first")
+    if not remove_member(instance, workspace, user):
+        raise ValueError("not a member of this workspace")
+    return user_workspaces(instance, user)
+
+
+def transfer_owner(instance, workspace, current_owner, new_owner):
+    meta = get(instance, workspace)
+    if not meta or meta.get("owner") != current_owner:
+        raise ValueError("only the workspace owner can transfer")
+    if not membership(instance, workspace, new_owner):
+        raise ValueError("new owner must be a member")
+    with _conn(instance) as conn:
+        conn.execute("UPDATE workspaces SET owner=? WHERE id=?", (new_owner, workspace))
+        conn.execute("""INSERT INTO workspace_members(workspace,user,role,joined_at) VALUES(?,?,?,?)
+            ON CONFLICT(workspace,user) DO UPDATE SET role='owner'""",
+                     (workspace, new_owner, "owner", time.time()))
+        conn.execute("UPDATE workspace_members SET role='admin' WHERE workspace=? AND user=?",
+                     (workspace, current_owner))
+    return get(instance, workspace)
+
+
+def set_role(instance, workspace, actor, target, role):
+    if role not in ("admin", "member"):
+        raise ValueError("role must be admin or member")
+    meta = get(instance, workspace)
+    if not meta:
+        raise ValueError("workspace not found")
+    actor_role = membership(instance, workspace, actor)
+    if actor_role not in ("owner", "admin"):
+        raise ValueError("workspace owner/admin required")
+    if target == meta.get("owner"):
+        raise ValueError("cannot change the owner's role")
+    if not membership(instance, workspace, target):
+        raise ValueError("member not found")
+    with _conn(instance) as conn:
+        conn.execute("UPDATE workspace_members SET role=? WHERE workspace=? AND user=?",
+                     (role, workspace, target))
+    return members(instance, workspace)
