@@ -134,3 +134,10 @@ PY
 - 本机「云任务」→「执行」/「执行下一条」
 - 执行前检查本机 Agent 绑定；未配置不领取
 - 自动执行仍可 `DUTANG_LAUNCHER_EXECUTE=1`
+
+## Workspace 隔离
+
+- 新账号自动获得 `w_<hash>` workspace
+- Issue/Launcher/配对码按 workspace 过滤
+- 旧数据默认 `w_legacy`；机器 token 保持 legacy
+- 公开实例 board 仍只有 legacy workspace；新用户看不到彼此数据

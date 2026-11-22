@@ -406,7 +406,8 @@ class Handler(BaseHTTPRequestHandler):
             except (AuthError, ValueError, UnicodeError):
                 return self._send(400, {"error": "用户名或密码不符合要求，或用户已存在"})
             return self._send(200, {"session": session["token"], "name": session["name"],
-                                    "role": session["role"], "expires_at": session["expires_at"]},
+                                    "role": session["role"], "workspace": session.get("workspace"),
+                                    "expires_at": session["expires_at"]},
                               headers=self._session_cookie_header(session["token"]))
         if method == "POST" and path == LOGIN_PATH:
             try:
@@ -415,12 +416,14 @@ class Handler(BaseHTTPRequestHandler):
             except (AuthError, ValueError):
                 return self._send(401, {"error": "invalid credentials"})
             return self._send(200, {"session": session["token"], "name": session["name"],
-                                    "role": session["role"], "expires_at": session["expires_at"]},
+                                    "role": session["role"], "workspace": session.get("workspace"),
+                                    "expires_at": session["expires_at"]},
                               headers=self._session_cookie_header(session["token"]))
 
         # 会话已在 _handle 开头解析（bearer 优先，其次 cookie）
         raw = self._session_token
         session = self._session
+        workspace_id = (session or {}).get("workspace", "w_legacy")
 
         if path == "/api/launchers/claim" and method == "POST":
             if not registration_allow(_request_ip(self)):
@@ -438,7 +441,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(403, {"error": "human session required"})
             try:
                 from .launchers import create_pairing_code
-                return self._send(200, create_pairing_code(self.server.store.home, session["name"]))
+                return self._send(200, create_pairing_code(self.server.store.home, session["name"],
+                                                            workspace_id))
             except Exception as exc:
                 return self._send(500, {"error": str(exc)})
         if path.startswith("/api/launchers/") and path.endswith("/heartbeat") and method == "POST":
@@ -467,8 +471,8 @@ class Handler(BaseHTTPRequestHandler):
             if not session:
                 return self._send(403, {"error": "human session required"})
             from .launchers import list_launchers
-            owner = None if session.get("role") == "admin" else session["name"]
-            return self._send(200, {"launchers": list_launchers(self.server.store.home, owner)})
+            return self._send(200, {"launchers": list_launchers(
+                self.server.store.home, None, workspace_id)})
         if path == "/api/launcher/tasks" and method == "GET":
             from .launchers import authenticate
             token = self.headers.get("Authorization", "")
@@ -641,7 +645,7 @@ class Handler(BaseHTTPRequestHandler):
                 if len(parts) == 2 and method == "GET":
                     query = parse_qs(urlsplit(self.path).query)
                     state = (query.get("state") or [None])[0]
-                    return self._send(200, {"issues": self.server.issues.list(state)})
+                    return self._send(200, {"issues": self.server.issues.list(state, workspace_id)})
                 if len(parts) == 2 and method == "POST":
                     issue = self.server.issues.create(
                         title=data.get("title"), assignee=data.get("assignee"),
@@ -653,13 +657,16 @@ class Handler(BaseHTTPRequestHandler):
                         max_tokens=data.get("max_tokens", 100000),
                         max_calls=data.get("max_calls", 4),
                         max_cost_usd=data.get("max_cost_usd"),
-                        launcher_id=data.get("launcher_id"), actor=actor)
+                        launcher_id=data.get("launcher_id"), workspace_id=workspace_id, actor=actor)
                     return self._send(201, issue)
                 if len(parts) < 3:
                     return self._send(405, {"error": "method not allowed"})
                 issue_id = parts[2]
+                issue = self.server.issues.get(issue_id)
+                if issue.get("workspace_id") != workspace_id:
+                    return self._send(404, {"error": "issue not found"})
                 if len(parts) == 3 and method == "GET":
-                    return self._send(200, self.server.issues.get(issue_id))
+                    return self._send(200, issue)
                 if len(parts) != 4 or method != "POST":
                     return self._send(405, {"error": "method not allowed"})
                 action = parts[3]

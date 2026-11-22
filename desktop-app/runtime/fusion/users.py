@@ -55,10 +55,17 @@ class UserStore:
         return users
 
     def users(self) -> list[dict]:
-        return [{"name": u["name"], "role": u["role"], "created_at": u["created_at"]}
-                for u in self._load()]
+        return [{"name": u["name"], "role": u["role"], "created_at": u["created_at"],
+                 "workspace": u.get("workspace", "w_legacy")} for u in self._load()]
 
-    def add_user(self, name: str, password: str, role: str = "operator") -> None:
+    def workspace(self, name: str) -> str:
+        for user in self._load():
+            if user["name"] == name:
+                return user.get("workspace", "w_legacy")
+        return "w_legacy"
+
+    def add_user(self, name: str, password: str, role: str = "operator",
+                 workspace: str | None = None) -> None:
         if role not in ROLES:
             raise AuthError(f"role must be one of {ROLES}")
         if not (3 <= len(name) <= 64) or not name.replace("_", "").replace("-", "").isalnum():
@@ -69,8 +76,13 @@ class UserStore:
         if any(u["name"] == name for u in users):
             raise AuthError("user already exists")
         salt = secrets.token_bytes(16)
+        if workspace is None:
+            workspace = "w_" + hashlib.sha256(name.encode()).hexdigest()[:16]
+        if not isinstance(workspace, str) or not workspace.startswith("w_") or len(workspace) > 80:
+            raise AuthError("invalid workspace")
         users.append({"name": name, "salt": salt.hex(),
                       "hash": _hash_password(password, salt), "role": role,
+                      "workspace": workspace,
                       "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
         _atomic_write(self.path, {"users": users})
 
@@ -113,6 +125,7 @@ class UserStore:
                          "expires_at": time.time() + ttl_sec})
         _atomic_write(self.sessions_path, {"sessions": sessions})
         return {"token": token, "name": name, "role": role,
+                "workspace": self.workspace(name),
                 "expires_at": int(time.time() + ttl_sec)}
 
     def check_session(self, token: str) -> dict | None:
@@ -123,7 +136,8 @@ class UserStore:
                 user = users.get(s["name"])
                 if user is None:
                     return None
-                return {"name": user["name"], "role": user["role"]}
+                return {"name": user["name"], "role": user["role"],
+                        "workspace": user.get("workspace", "w_legacy")}
         return None
 
     def logout(self, token: str) -> bool:

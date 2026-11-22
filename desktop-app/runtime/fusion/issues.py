@@ -37,6 +37,7 @@ class IssueStore:
                     id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL,
                     state TEXT NOT NULL, parent_id TEXT, assignee TEXT NOT NULL,
                     model TEXT, reviewer TEXT, approver TEXT, launcher_id TEXT,
+                    workspace_id TEXT NOT NULL DEFAULT 'w_legacy',
                     priority INTEGER NOT NULL DEFAULT 0,
                     acceptance TEXT NOT NULL, checks TEXT NOT NULL DEFAULT '[]',
                     attempts INTEGER NOT NULL DEFAULT 0, max_attempts INTEGER NOT NULL DEFAULT 3,
@@ -88,6 +89,8 @@ class IssueStore:
                 conn.execute("ALTER TABLE issues ADD COLUMN max_cost_usd REAL")
             if "launcher_id" not in columns:
                 conn.execute("ALTER TABLE issues ADD COLUMN launcher_id TEXT")
+            if "workspace_id" not in columns:
+                conn.execute("ALTER TABLE issues ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'w_legacy'")
 
     def _event(self, conn, issue_id, actor, action, detail):
         conn.execute("INSERT INTO issue_events(issue_id,at,actor,action,detail) VALUES(?,?,?,?,?)",
@@ -223,17 +226,20 @@ class IssueStore:
     def create(self, *, title, assignee, body="", parent_id=None, blockers=(), reviewer=None,
                approver=None, priority=0, acceptance=(), checks=(), model=None, actor="human",
                max_attempts=3, max_tokens=100000, max_calls=4, max_cost_usd=None,
-               launcher_id=None):
+               launcher_id=None, workspace_id="w_legacy"):
         title = str(title or "").strip()
         assignee = str(assignee or "").strip()
         if not title or len(title) > 200:
             raise PolicyError("title is required and must be <= 200 chars")
         if not assignee or len(assignee) > 100:
             raise PolicyError("assignee is required")
+        if not isinstance(workspace_id, str) or not workspace_id.startswith("w_") or len(workspace_id) > 80:
+            raise PolicyError("invalid workspace")
         if launcher_id is not None:
-            from .launchers import exists
-            if not exists(self.store.home, str(launcher_id)):
-                raise PolicyError("launcher not found")
+            from .launchers import get
+            launcher = get(self.store.home, str(launcher_id))
+            if not launcher or launcher.get("workspace") != workspace_id:
+                raise PolicyError("launcher not found in this workspace")
         if not isinstance(blockers, (list, tuple)) or len(blockers) > 32:
             raise PolicyError("blockers must be a list (max 32)")
         if not isinstance(acceptance, (list, tuple)) or len(acceptance) > 16:
@@ -283,10 +289,10 @@ class IssueStore:
                         break
             conn.execute("""
                 INSERT INTO issues(id,title,body,state,parent_id,assignee,model,reviewer,approver,
-                    launcher_id,priority,acceptance,checks,attempts,max_attempts,max_tokens,max_calls,max_cost_usd,depth,created_at,updated_at)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    launcher_id,workspace_id,priority,acceptance,checks,attempts,max_attempts,max_tokens,max_calls,max_cost_usd,depth,created_at,updated_at)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (issue_id, title, str(body or "")[:20000], state, parent_id, assignee, model,
-                  reviewer, approver, launcher_id, int(priority), json.dumps(list(acceptance)),
+                  reviewer, approver, launcher_id, workspace_id, int(priority), json.dumps(list(acceptance)),
                   json.dumps(list(checks)), 0, int(max_attempts), int(max_tokens), int(max_calls), max_cost_usd, 0, now(), now()))
             for blocker in blockers:
                 conn.execute("INSERT INTO issue_blockers(issue_id,blocker_id) VALUES(?,?)",
@@ -323,15 +329,21 @@ class IssueStore:
                 "SELECT id FROM issues WHERE parent_id=? ORDER BY created_at", (issue_id,))]
             return issue
 
-    def list(self, state=None):
+    def list(self, state=None, workspace_id=None):
         if state is not None and state not in STATES:
             raise PolicyError("invalid state")
         with self.store.connect() as conn:
             sql = "SELECT id FROM issues"
             args = ()
+            clauses = []
             if state:
-                sql += " WHERE state=?"
-                args = (state,)
+                clauses.append("state=?")
+                args += (state,)
+            if workspace_id is not None:
+                clauses.append("workspace_id=?")
+                args += (workspace_id,)
+            if clauses:
+                sql += " WHERE " + " AND ".join(clauses)
             sql += " ORDER BY priority DESC, created_at"
             return [self.get(item[0]) for item in conn.execute(sql, args)]
 
