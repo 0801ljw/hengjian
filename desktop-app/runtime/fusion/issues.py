@@ -510,10 +510,19 @@ class IssueStore:
                 raise PolicyError("issue is not queued for this launcher")
             conn.execute("""UPDATE issues SET state='running',claimed_by=?,claim_token=?,
                 lease_until=?,updated_at=?,revision=revision+1 WHERE id=?""",
-                         (f"launcher:{launcher_id}", token, _lease(120), now(), issue_id))
+                         (f"launcher:{launcher_id}", token, _lease(600), now(), issue_id))
             self._event(conn, issue_id, f"launcher:{launcher_id}", "launcher_claimed",
                         {"launcher_id": launcher_id})
         return self.get(issue_id), token
+
+    def launcher_heartbeat(self, issue_id, launcher_id, claim_token):
+        with self.store.transaction() as conn:
+            cur = conn.execute("""UPDATE issues SET lease_until=?,updated_at=?
+                WHERE id=? AND launcher_id=? AND claim_token=? AND state='running'""",
+                               (_lease(600), now(), issue_id, launcher_id, claim_token))
+            if cur.rowcount != 1:
+                raise PolicyError("launcher claim is not active")
+        return True
 
     def launcher_complete(self, issue_id, launcher_id, claim_token, summary, artifacts=(), checks=(), usage=None):
         if not isinstance(artifacts, (list, tuple)) or len(artifacts) > 32:

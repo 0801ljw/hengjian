@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -124,6 +125,12 @@ def fail(instance, issue_id, claim_token, error, retry=True):
                      "retry": bool(retry)}, token=data["token"])[1]
 
 
+def heartbeat_task(instance, issue_id, claim_token):
+    data = _auth(instance)
+    return _request("POST", data["cloud_url"] + f"/api/launcher/tasks/{issue_id}/heartbeat",
+                    {"claim_token": claim_token}, token=data["token"])[1]
+
+
 def worker_once(instance):
     """Claim one cloud task and execute it locally; caller opts into running it."""
     from .issue_executor import execute_issue
@@ -133,11 +140,25 @@ def worker_once(instance):
     issue_id = pending[0]["id"]
     claimed = claim(instance, issue_id)
     issue = claimed["issue"]
+    stop = threading.Event()
+
+    def keep_lease():
+        while not stop.wait(30):
+            try:
+                heartbeat_task(instance, issue_id, claimed["claim_token"])
+            except Exception:
+                return
+
+    lease_thread = threading.Thread(target=keep_lease, daemon=True)
+    lease_thread.start()
     try:
         result = execute_issue(issue, instance)
     except Exception as exc:
+        stop.set()
         fail(instance, issue_id, claimed["claim_token"], str(exc), retry=False)
         return {"status": "failed", "issue": issue_id, "error": str(exc)}
+    finally:
+        stop.set()
     if result.get("status") == "done":
         complete(instance, issue_id, claimed["claim_token"], result.get("summary", ""),
                  result.get("artifacts") or [], result.get("checks") or [], result.get("usage"))

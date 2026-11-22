@@ -681,6 +681,23 @@ function boot() {
     } catch (error) { status("launchers-status", error.message, true); }
   }
 
+  async function refreshCloudTasks() {
+    const list = $("cloud-tasks-list");
+    list.replaceChildren();
+    try {
+      const data = await api("/api/launcher/cloud-tasks");
+      for (const task of data.tasks || []) {
+        const item = text("li", "");
+        item.append(text("strong", task.title || task.id), text("div", `${task.id} · ${task.assignee || ""}`));
+        if (task.body) item.append(text("div", String(task.body).slice(0, 300)));
+        list.append(item);
+      }
+      status("cloud-tasks-status", (data.tasks || []).length ? `${data.tasks.length} 个待领取任务` : "没有待领取任务。");
+    } catch (error) {
+      status("cloud-tasks-status", error.message, true);
+    }
+  }
+
   async function refreshLaunchers() {
     const list = $("launchers-list");
     list.replaceChildren();
@@ -1069,6 +1086,7 @@ function boot() {
   $("launcher-pair").addEventListener("click", pairLauncher);
   $("launcher-disconnect").addEventListener("click", disconnectLauncher);
   $("launcher-code-generate").addEventListener("click", generateLauncherCode);
+  $("cloud-tasks-refresh").addEventListener("click", refreshCloudTasks);
   $("agent-lifecycle-save").addEventListener("click", saveAgentLifecycle);
   $("agent-lifecycle-start").addEventListener("click", () => lifecycleAction("start"));
   $("agent-lifecycle-stop").addEventListener("click", () => lifecycleAction("stop"));
@@ -1534,6 +1552,7 @@ function boot() {
     refreshMembers();
     refreshLauncherStatus();
     refreshLaunchers();
+    refreshCloudTasks();
     refreshAgentRegistry();
     refreshIssues();
     refreshModels();

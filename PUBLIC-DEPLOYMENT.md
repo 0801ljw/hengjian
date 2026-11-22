@@ -116,3 +116,9 @@ PY
 - 领取/完成/失败：`POST /api/launcher/tasks/<id>/claim|complete|fail`
 - 当前没有创建 Issue UI；用 API/工具
 - 没有自动回收 Launcher 离线任务；running 可能卡住
+
+## 任务租约
+
+- Launcher 领取后 600s lease，执行中每 30s 心跳续租
+- 过期 running 由 recovery loop 退回 queued
+- 当前云任务面板只读；自动执行需 `DUTANG_LAUNCHER_EXECUTE=1` 和本机模型配置

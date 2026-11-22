@@ -369,6 +369,14 @@
     </section>
 
     <section class="drawer-section">
+      <h3>云任务</h3>
+      <p class="fineprint">显示云空间派给本机 Launcher 的待领取任务。执行需本机模型配置。</p>
+      <button id="cloud-tasks-refresh" class="btn btn-quiet" type="button">刷新云任务</button>
+      <p id="cloud-tasks-status" class="status-line" role="status" aria-live="polite"></p>
+      <ul id="cloud-tasks-list" class="issue-artifacts"></ul>
+    </section>
+
+    <section class="drawer-section">
       <h3>已连接 Launcher（云空间）</h3>
       <p class="fineprint">在云空间生成配对码，再到本机 App 的「连接云空间」输入。</p>
       <button id="launcher-code-generate" class="btn" type="button">生成配对码</button>

@@ -485,7 +485,7 @@ class Handler(BaseHTTPRequestHandler):
             if not launcher_id:
                 return self._send(401, {"error": "invalid launcher token"})
             parts = path.strip("/").split("/")
-            if len(parts) != 5 or parts[4] not in ("claim", "complete", "fail"):
+            if len(parts) != 5 or parts[4] not in ("claim", "complete", "fail", "heartbeat"):
                 return self._send(405, {"error": "unknown launcher action"})
             issue_id = parts[3]
             try:
@@ -493,6 +493,9 @@ class Handler(BaseHTTPRequestHandler):
                 if parts[4] == "claim":
                     issue, claim_token = self.server.issues.launcher_claim(issue_id, launcher_id)
                     return self._send(200, {"issue": issue, "claim_token": claim_token})
+                if parts[4] == "heartbeat":
+                    return self._send(200, {"ok": self.server.issues.launcher_heartbeat(
+                        issue_id, launcher_id, data.get("claim_token", ""))})
                 if parts[4] == "complete":
                     return self._send(200, self.server.issues.launcher_complete(
                         issue_id, launcher_id, data.get("claim_token", ""), data.get("summary", ""),
@@ -508,6 +511,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(403, {"error": "human session required"})
             from .launcher_client import status
             return self._send(200, status(self.server.store.home))
+        if path == "/api/launcher/cloud-tasks" and method == "GET":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            try:
+                from .launcher_client import tasks
+                return self._send(200, {"tasks": tasks(self.server.store.home)})
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+
         if path == "/api/launcher/pair" and method == "POST":
             if not session:
                 return self._send(403, {"error": "human session required"})
