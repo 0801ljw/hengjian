@@ -375,10 +375,16 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(403, {"error": "registration is full"})
                 if not registration_allow(client_ip):
                     return self._send(429, {"error": "too many registration attempts"})
+            try:
+                data = json.loads(body.decode("utf-8") or "{}")
+                if not isinstance(data, dict) or set(data) - {"username", "password", "invite"}:
+                    raise AuthError("invalid registration payload")
+            except (ValueError, UnicodeError):
+                return self._send(400, {"error": "invalid registration payload"})
+            invite = str(data.get("invite") or "").strip()
             # After the first account, adding members is an admin action unless
-            # public registration is explicitly enabled. The first admin may
-            # also require a bootstrap token.
-            if users.users() and not public:
+            # public registration is enabled or the user presents a valid invite.
+            if users.users() and not public and not invite:
                 if not self._session or self._session.get("role") != "admin":
                     return self._send(403, {"error": "admin session required"})
             bootstrap = os.environ.get("DUTANG_BOOTSTRAP_TOKEN")
@@ -387,9 +393,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not hmac.compare_digest(str(supplied), bootstrap):
                     return self._send(403, {"error": "bootstrap token required"})
             try:
-                data = json.loads(body.decode("utf-8") or "{}")
-                if not isinstance(data, dict) or set(data) - {"username", "password"}:
-                    raise AuthError("invalid registration payload")
+                invited_workspace = None
+                if invite:
+                    from .workspaces import consume
+                    invited_workspace = consume(self.server.store.home, invite)
                 username = str(data.get("username", ""))
                 password = str(data.get("password", ""))
                 # First account bootstraps the admin; later accounts are
@@ -401,7 +408,7 @@ class Handler(BaseHTTPRequestHandler):
                     role = os.environ.get("DUTANG_REGISTRATION_ROLE", "operator")
                     if role not in ("operator", "viewer"):
                         role = "operator"
-                users.add_user(username, password, role)
+                users.add_user(username, password, role, workspace=invited_workspace)
                 session = users.login(username, password)
             except (AuthError, ValueError, UnicodeError):
                 return self._send(400, {"error": "用户名或密码不符合要求，或用户已存在"})
@@ -799,6 +806,23 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 status, payload = 503, {"error": "agent management unavailable"}
             return self._send(status, payload)
+
+        if path == "/api/workspaces/invite" and method == "POST":
+            session = getattr(self, "_session", None)
+            if not session or session.get("role") != "admin":
+                return self._send(403 if session else 401, {"error": "admin session required"})
+            try:
+                from .workspaces import create_invite
+                return self._send(200, create_invite(self.server.store.home,
+                                                     workspace_id, session["name"]))
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+        if path == "/api/workspaces/invites" and method == "GET":
+            session = getattr(self, "_session", None)
+            if not session or session.get("role") != "admin":
+                return self._send(403 if session else 401, {"error": "admin session required"})
+            from .workspaces import active_invites
+            return self._send(200, {"invites": active_invites(self.server.store.home, workspace_id)})
 
         if path == "/api/members":
             session = getattr(self, "_session", None)

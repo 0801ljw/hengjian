@@ -47,6 +47,7 @@
     try {
       enter(await request("/api/register", {
         username: $("register-name").value, password: $("register-password").value,
+        invite: $("register-invite").value.trim(),
       }));
     } catch (error) { status(error.message, true); }
   });

@@ -2,6 +2,7 @@ from fusion.core import Store
 from fusion.issues import IssueStore
 from fusion.tests.test_auth import call, http  # noqa: F401 - fixture
 from fusion.users import UserStore
+from fusion.workspaces import consume, create_invite
 
 
 def test_new_users_get_distinct_workspaces(tmp_path):
@@ -25,3 +26,13 @@ def test_issue_api_is_workspace_scoped(http):
     assert [item["id"] for item in alice["issues"]] == [issue["id"]]
     assert bob["issues"] == []
     assert call(base, f"/api/issues/{issue['id']}", b["session"])[0] == 404
+
+
+def test_workspace_invite_is_one_use(tmp_path):
+    invite = create_invite(tmp_path, "w_team", "board")
+    assert consume(tmp_path, invite["code"]) == "w_team"
+    try:
+        consume(tmp_path, invite["code"])
+        assert False
+    except ValueError:
+        pass

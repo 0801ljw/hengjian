@@ -823,6 +823,14 @@ function boot() {
     }
   }
 
+  async function createWorkspaceInvite() {
+    try {
+      const data = await api("/api/workspaces/invite", { method: "POST", body: "{}" });
+      $("member-invite-code").textContent =
+        `邀请码：${data.code}（7 天内有效，一次性；注册时填写即加入当前 Workspace）`;
+    } catch (error) { status("members-status", error.message, true); }
+  }
+
   async function addMember() {
     const name = $("member-name").value.trim();
     const password = $("member-password").value;
@@ -1153,6 +1161,7 @@ function boot() {
   $("policy-save").addEventListener("click", savePolicy);
   $("pricing-save").addEventListener("click", savePricing);
   $("member-add").addEventListener("click", addMember);
+  $("member-invite").addEventListener("click", createWorkspaceInvite);
   $("launcher-pair").addEventListener("click", pairLauncher);
   $("launcher-login").addEventListener("click", loginLauncher);
   $("launcher-disconnect").addEventListener("click", disconnectLauncher);
