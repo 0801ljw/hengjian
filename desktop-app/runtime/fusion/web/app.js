@@ -637,6 +637,25 @@ function boot() {
     }
   }
 
+  async function createCloudTask() {
+    const title = $("dispatch-title").value.trim();
+    const assignee = $("dispatch-assignee").value.trim() || "gongbu";
+    const launcher = $("dispatch-launcher").value;
+    if (!title) { status("dispatch-status", "标题必填。", true); return; }
+    if (!launcher) { status("dispatch-status", "还没有已连接 Launcher。", true); return; }
+    try {
+      const issue = await api("/api/issues", {
+        method: "POST",
+        body: JSON.stringify({ title, assignee, body: $("dispatch-body").value,
+                               launcher_id: launcher, max_tokens: 50000 }),
+      });
+      $("dispatch-status").textContent = `已创建 ${issue.id}，等待 Launcher 领取。`;
+      $("dispatch-title").value = ""; $("dispatch-body").value = "";
+    } catch (error) {
+      status("dispatch-status", error.message, true);
+    }
+  }
+
   async function refreshLauncherStatus() {
     try {
       const data = await api("/api/launcher");
@@ -703,6 +722,18 @@ function boot() {
     list.replaceChildren();
     try {
       const data = await api("/api/launchers");
+      const select = $("dispatch-launcher");
+      if (select) {
+        const previous = select.value;
+        select.replaceChildren();
+        for (const item of data.launchers || []) {
+          const option = document.createElement("option");
+          option.value = item.id;
+          option.textContent = `${item.name}${item.host ? " · " + item.host : ""}`;
+          select.append(option);
+        }
+        if (previous) select.value = previous;
+      }
       for (const item of data.launchers || []) {
         const row = text("li", `${item.name} · ${item.host || "未知主机"} · ${item.last_seen || "从未心跳"}`);
         if (me?.auth === "session" && me.role === "admin") {
@@ -1087,6 +1118,7 @@ function boot() {
   $("launcher-disconnect").addEventListener("click", disconnectLauncher);
   $("launcher-code-generate").addEventListener("click", generateLauncherCode);
   $("cloud-tasks-refresh").addEventListener("click", refreshCloudTasks);
+  $("dispatch-create").addEventListener("click", createCloudTask);
   $("agent-lifecycle-save").addEventListener("click", saveAgentLifecycle);
   $("agent-lifecycle-start").addEventListener("click", () => lifecycleAction("start"));
   $("agent-lifecycle-stop").addEventListener("click", () => lifecycleAction("stop"));

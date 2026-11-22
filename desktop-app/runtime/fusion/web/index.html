@@ -355,6 +355,19 @@
     </section>
 
     <section class="drawer-section">
+      <h3>派发云任务</h3>
+      <p class="fineprint">把 Issue 指派给已连接 Launcher；没有 Launcher 时先在云空间生成配对码。</p>
+      <label class="field"><span>标题</span><input id="dispatch-title" maxlength="200"></label>
+      <div class="field-row">
+        <label class="field"><span>执行角色</span><input id="dispatch-assignee" value="gongbu"></label>
+        <label class="field"><span>Launcher</span><select id="dispatch-launcher"></select></label>
+      </div>
+      <label class="field"><span>任务说明</span><textarea id="dispatch-body" rows="3"></textarea></label>
+      <button id="dispatch-create" class="btn" type="button">创建并派发</button>
+      <p id="dispatch-status" class="status-line" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="drawer-section">
       <h3>连接云空间</h3>
       <p id="launcher-status" class="status-line" role="status" aria-live="polite">未连接。</p>
       <label class="field"><span>云空间 URL</span><input id="launcher-cloud-url" value="hengjian.playxapi.com" autocomplete="off"></label>

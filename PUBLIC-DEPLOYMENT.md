@@ -122,3 +122,9 @@ PY
 - Launcher 领取后 600s lease，执行中每 30s 心跳续租
 - 过期 running 由 recovery loop 退回 queued
 - 当前云任务面板只读；自动执行需 `DUTANG_LAUNCHER_EXECUTE=1` 和本机模型配置
+
+## 派发云任务
+
+- 云空间设置 →「派发云任务」：标题、执行角色、Launcher、说明
+- 创建后 state=queued，Launcher 拉取/领取
+- 本机「云任务」面板只读；自动执行需 `DUTANG_LAUNCHER_EXECUTE=1`
