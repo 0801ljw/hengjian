@@ -18,6 +18,7 @@ fi
 cd "$ROOT"
 "$VENV/bin/pyinstaller" --noconfirm --clean --onefile --name fusion-server \
   --paths runtime --collect-all fusion \
+  --add-data "runtime/fusion/web:fusion/web" \
   --add-data "runtime/scripts:scripts" \
   --add-data "runtime/agents.json:." \
   --add-data "runtime/VERSION:." \

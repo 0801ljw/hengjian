@@ -57,6 +57,20 @@ ARTIFACT_TEXT_SUFFIXES = {".md", ".txt", ".json", ".csv", ".yaml", ".yml"}
 ARTIFACT_MAX_BYTES = 64 * 1024
 
 
+def _request_ip(handler):
+    """Use the Cloudflare client IP only when the peer is the local tunnel."""
+    peer = handler.client_address[0]
+    if os.environ.get("DUTANG_TRUST_PROXY") == "1" and peer in ("127.0.0.1", "::1"):
+        candidate = (handler.headers.get("CF-Connecting-IP")
+                     or (handler.headers.get("X-Forwarded-For") or "").split(",", 1)[0].strip())
+        try:
+            ipaddress.ip_address(candidate)
+            return candidate
+        except ValueError:
+            pass
+    return peer
+
+
 def _registration_allowed(peer, host, origin):
     """First-account registration is loopback-only unless explicitly opted in.
 
@@ -351,14 +365,15 @@ class Handler(BaseHTTPRequestHandler):
                 "onboarding_required": onboarding.required(self.server.store.home),
             })
         if method == "POST" and path == REGISTER_PATH:
-            if not _registration_allowed(self.client_address[0], self.headers.get("Host", ""),
+            client_ip = _request_ip(self)
+            if not _registration_allowed(client_ip, self.headers.get("Host", ""),
                                          self.headers.get("Origin")):
                 return self._send(403, {"error": "registration is local-only"})
             public = os.environ.get("DUTANG_PUBLIC_REGISTRATION") == "1"
             if public and users.users():
                 if len(users.users()) >= 1000:
                     return self._send(403, {"error": "registration is full"})
-                if not registration_allow(self.client_address[0]):
+                if not registration_allow(client_ip):
                     return self._send(429, {"error": "too many registration attempts"})
             # After the first account, adding members is an admin action unless
             # public registration is explicitly enabled. The first admin may
@@ -406,6 +421,75 @@ class Handler(BaseHTTPRequestHandler):
         # 会话已在 _handle 开头解析（bearer 优先，其次 cookie）
         raw = self._session_token
         session = self._session
+
+        if path == "/api/launchers/claim" and method == "POST":
+            if not registration_allow(_request_ip(self)):
+                return self._send(429, {"error": "too many pairing attempts"})
+            try:
+                data = json.loads(body or b"{}")
+                from .launchers import claim
+                return self._send(200, claim(self.server.store.home, data.get("code", ""),
+                                             data.get("name", ""), data.get("host", ""),
+                                             data.get("version", "")))
+            except (ValueError, TypeError) as exc:
+                return self._send(400, {"error": str(exc)})
+        if path == "/api/launchers/pair" and method == "POST":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            try:
+                from .launchers import create_pairing_code
+                return self._send(200, create_pairing_code(self.server.store.home, session["name"]))
+            except Exception as exc:
+                return self._send(500, {"error": str(exc)})
+        if path.startswith("/api/launchers/") and path.endswith("/heartbeat") and method == "POST":
+            parts = path.strip("/").split("/")
+            if len(parts) != 4:
+                return self._send(400, {"error": "invalid launcher path"})
+            token = ""
+            auth = self.headers.get("Authorization", "")
+            if auth.startswith("Bearer "):
+                token = auth[len("Bearer "):].strip()
+            from .launchers import heartbeat
+            if not token or not heartbeat(self.server.store.home, parts[2], token):
+                return self._send(401, {"error": "invalid launcher token"})
+            return self._send(200, {"ok": True})
+        if path.startswith("/api/launchers/") and method == "DELETE":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            from .launchers import revoke
+            launcher_id = path.removeprefix("/api/launchers/").strip()
+            owner = None if session.get("role") == "admin" else session["name"]
+            if not launcher_id or not revoke(self.server.store.home, launcher_id, owner):
+                return self._send(404, {"error": "launcher not found"})
+            return self._send(200, {"ok": True})
+
+        if path == "/api/launchers" and method == "GET":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            from .launchers import list_launchers
+            owner = None if session.get("role") == "admin" else session["name"]
+            return self._send(200, {"launchers": list_launchers(self.server.store.home, owner)})
+        if path == "/api/launcher" and method == "GET":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            from .launcher_client import status
+            return self._send(200, status(self.server.store.home))
+        if path == "/api/launcher/pair" and method == "POST":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            try:
+                data = json.loads(body or b"{}")
+                from .launcher_client import pair
+                return self._send(200, pair(self.server.store.home, data.get("cloud_url", ""),
+                                            data.get("code", ""), data.get("name", "Hengjian Launcher"),
+                                            data.get("host", ""), data.get("version", "")))
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+        if path == "/api/launcher/disconnect" and method == "POST":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            from .launcher_client import disconnect
+            return self._send(200, disconnect(self.server.store.home))
 
         if path == ME_PATH:
             if session:
@@ -681,6 +765,15 @@ class Handler(BaseHTTPRequestHandler):
         self._send(status, payload)
 
 
+def launcher_heartbeat_loop(httpd, *, interval: float = 30.0) -> None:
+    from .launcher_client import heartbeat
+    while not httpd.launcher_stop.wait(interval):
+        try:
+            heartbeat(httpd.store.home)
+        except Exception:
+            pass
+
+
 def worker_loop(httpd, *, interval: float = 2.0, allow_unpriced: bool = False) -> None:
     """Trusted consumer: drain the request queue, never auto-replay running work."""
     from .ai import DecisionClient
@@ -850,6 +943,10 @@ def serve(home: Path, *, host: str = "127.0.0.1", port: int = 0,
     httpd.model_access = ModelAccess(store.home)
     httpd.issues = IssueStore(store)
     httpd.issue_stop = threading.Event()
+    httpd.launcher_stop = threading.Event()
+    httpd.launcher_thread = threading.Thread(
+        target=launcher_heartbeat_loop, args=(httpd,), daemon=True)
+    httpd.launcher_thread.start()
     httpd.lifecycle_stop = threading.Event()
     httpd.lifecycle_supervisor = threading.Thread(
         target=lifecycle_supervisor_loop, args=(httpd,), daemon=True)

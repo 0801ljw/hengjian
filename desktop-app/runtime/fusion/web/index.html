@@ -355,6 +355,29 @@
     </section>
 
     <section class="drawer-section">
+      <h3>连接云空间</h3>
+      <p id="launcher-status" class="status-line" role="status" aria-live="polite">未连接。</p>
+      <label class="field"><span>云空间 URL</span><input id="launcher-cloud-url" value="hengjian.playxapi.com" autocomplete="off"></label>
+      <div class="field-row">
+        <label class="field"><span>配对码</span><input id="launcher-code" maxlength="8" autocomplete="off"></label>
+        <label class="field"><span>名称</span><input id="launcher-name" value="Hengjian Launcher"></label>
+      </div>
+      <div class="drawer-actions">
+        <button id="launcher-pair" class="btn" type="button">连接</button>
+        <button id="launcher-disconnect" class="btn btn-quiet" type="button">断开</button>
+      </div>
+    </section>
+
+    <section class="drawer-section">
+      <h3>已连接 Launcher（云空间）</h3>
+      <p class="fineprint">在云空间生成配对码，再到本机 App 的「连接云空间」输入。</p>
+      <button id="launcher-code-generate" class="btn" type="button">生成配对码</button>
+      <p id="launcher-code-display" class="run-meta"></p>
+      <p id="launchers-status" class="status-line" role="status" aria-live="polite">读取中…</p>
+      <ul id="launchers-list" class="issue-artifacts"></ul>
+    </section>
+
+    <section class="drawer-section">
       <h3>成员管理</h3>
       <p class="fineprint">仅 admin；新成员默认 operator，创建后可在自己的浏览器登录。</p>
       <p id="members-status" class="status-line" role="status" aria-live="polite">需要 admin 会话。</p>

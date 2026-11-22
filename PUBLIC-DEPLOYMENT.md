@@ -101,3 +101,10 @@ store.add_user('board', pw, 'admin')
 print(pw)  # 只写到本地安全位置，不要贴聊天
 PY
 ```
+
+## Launcher 配对
+
+- 云空间：设置 →「已连接 Launcher」→ 生成配对码
+- 本机 App：设置 →「连接云空间」→ 输入云空间 URL + 配对码
+- 配对后本机每 30s 心跳；云空间可看到/移除 Launcher
+- 当前只做配对/心跳，未下发任务或同步文件

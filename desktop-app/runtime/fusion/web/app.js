@@ -637,6 +637,76 @@ function boot() {
     }
   }
 
+  async function refreshLauncherStatus() {
+    try {
+      const data = await api("/api/launcher");
+      $("launcher-status").textContent = data.paired
+        ? `已连接 ${data.cloud_url} · ${data.name} · 上次心跳 ${data.last_heartbeat || "无"}`
+        : "未连接云空间。";
+    } catch {
+      $("launcher-status").textContent = "需要人类会话才能连接云空间。";
+    }
+  }
+
+  async function pairLauncher() {
+    try {
+      let cloud = $("launcher-cloud-url").value.trim();
+      if (cloud && !/^https?:\/\//.test(cloud)) cloud = "https:" + "//" + cloud;
+      const data = await api("/api/launcher/pair", {
+        method: "POST",
+        body: JSON.stringify({
+          cloud_url: cloud,
+          code: $("launcher-code").value.trim(),
+          name: $("launcher-name").value.trim() || "Hengjian Launcher",
+        }),
+      });
+      $("launcher-status").textContent = `已连接 ${data.cloud_url} · ${data.name}`;
+    } catch (error) {
+      status("launcher-status", error.message, true);
+    }
+  }
+
+  async function disconnectLauncher() {
+    try {
+      await api("/api/launcher/disconnect", { method: "POST", body: "{}" });
+      await refreshLauncherStatus();
+    } catch (error) { status("launcher-status", error.message, true); }
+  }
+
+  async function generateLauncherCode() {
+    try {
+      const data = await api("/api/launchers/pair", { method: "POST", body: "{}" });
+      $("launcher-code-display").textContent = `配对码：${data.code}（${Math.round(data.ttl / 60)} 分钟内有效）`;
+      await refreshLaunchers();
+    } catch (error) { status("launchers-status", error.message, true); }
+  }
+
+  async function refreshLaunchers() {
+    const list = $("launchers-list");
+    list.replaceChildren();
+    try {
+      const data = await api("/api/launchers");
+      for (const item of data.launchers || []) {
+        const row = text("li", `${item.name} · ${item.host || "未知主机"} · ${item.last_seen || "从未心跳"}`);
+        if (me?.auth === "session" && me.role === "admin") {
+          const remove = text("button", "移除");
+          remove.type = "button"; remove.className = "btn btn-quiet btn-small";
+          remove.addEventListener("click", async () => {
+            try {
+              await api(`/api/launchers/${encodeURIComponent(item.id)}`, { method: "DELETE" });
+              await refreshLaunchers();
+            } catch (error) { status("launchers-status", error.message, true); }
+          });
+          row.append(text("span", " "), remove);
+        }
+        list.append(row);
+      }
+      status("launchers-status", (data.launchers || []).length ? `${data.launchers.length} 个 Launcher` : "还没有 Launcher。");
+    } catch {
+      status("launchers-status", "需要云空间账户才能查看 Launcher。", true);
+    }
+  }
+
   async function refreshMembers() {
     const list = $("members-list");
     if (!list) return;
@@ -996,6 +1066,9 @@ function boot() {
   $("policy-save").addEventListener("click", savePolicy);
   $("pricing-save").addEventListener("click", savePricing);
   $("member-add").addEventListener("click", addMember);
+  $("launcher-pair").addEventListener("click", pairLauncher);
+  $("launcher-disconnect").addEventListener("click", disconnectLauncher);
+  $("launcher-code-generate").addEventListener("click", generateLauncherCode);
   $("agent-lifecycle-save").addEventListener("click", saveAgentLifecycle);
   $("agent-lifecycle-start").addEventListener("click", () => lifecycleAction("start"));
   $("agent-lifecycle-stop").addEventListener("click", () => lifecycleAction("stop"));
@@ -1459,6 +1532,8 @@ function boot() {
     refreshPricing();
     refreshAlerts();
     refreshMembers();
+    refreshLauncherStatus();
+    refreshLaunchers();
     refreshAgentRegistry();
     refreshIssues();
     refreshModels();
