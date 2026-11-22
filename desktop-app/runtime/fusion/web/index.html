@@ -372,11 +372,17 @@
       <p id="launcher-status" class="status-line" role="status" aria-live="polite">未连接。</p>
       <label class="field"><span>云空间 URL</span><input id="launcher-cloud-url" value="hengjian.playxapi.com" autocomplete="off"></label>
       <div class="field-row">
+        <label class="field"><span>云账号</span><input id="launcher-username" autocomplete="username"></label>
+        <label class="field"><span>云密码</span><input id="launcher-password" type="password" autocomplete="current-password"></label>
+      </div>
+      <button id="launcher-login" class="btn" type="button">账号登录并连接</button>
+      <p class="fineprint">或使用配对码：</p>
+      <div class="field-row">
         <label class="field"><span>配对码</span><input id="launcher-code" maxlength="8" autocomplete="off"></label>
         <label class="field"><span>名称</span><input id="launcher-name" value="Hengjian Launcher"></label>
       </div>
       <div class="drawer-actions">
-        <button id="launcher-pair" class="btn" type="button">连接</button>
+        <button id="launcher-pair" class="btn btn-quiet" type="button">配对码连接</button>
         <button id="launcher-disconnect" class="btn btn-quiet" type="button">断开</button>
       </div>
     </section>

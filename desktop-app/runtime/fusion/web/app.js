@@ -667,6 +667,26 @@ function boot() {
     }
   }
 
+  async function loginLauncher() {
+    let cloud = $("launcher-cloud-url").value.trim();
+    if (cloud && !/^https?:\/\//.test(cloud)) cloud = "https:" + "//" + cloud;
+    try {
+      const data = await api("/api/launcher/login", {
+        method: "POST",
+        body: JSON.stringify({
+          cloud_url: cloud,
+          username: $("launcher-username").value.trim(),
+          password: $("launcher-password").value,
+          name: $("launcher-name").value.trim() || "Hengjian Launcher",
+        }),
+      });
+      $("launcher-status").textContent = `已连接 ${data.cloud_url} · ${data.name}`;
+      $("launcher-password").value = "";
+    } catch (error) {
+      status("launcher-status", error.message, true);
+    }
+  }
+
   async function pairLauncher() {
     try {
       let cloud = $("launcher-cloud-url").value.trim();
@@ -1134,6 +1154,7 @@ function boot() {
   $("pricing-save").addEventListener("click", savePricing);
   $("member-add").addEventListener("click", addMember);
   $("launcher-pair").addEventListener("click", pairLauncher);
+  $("launcher-login").addEventListener("click", loginLauncher);
   $("launcher-disconnect").addEventListener("click", disconnectLauncher);
   $("launcher-code-generate").addEventListener("click", generateLauncherCode);
   $("cloud-tasks-refresh").addEventListener("click", refreshCloudTasks);

@@ -52,6 +52,24 @@ def create_pairing_code(instance, owner, workspace="w_legacy", ttl=600):
     return {"code": code, "expires_at": current + int(ttl), "ttl": int(ttl)}
 
 
+def login_with_credentials(instance, username, password, name, host="", version=""):
+    from .users import UserStore
+    store = UserStore(Path(instance) / "auth")
+    role = store.verify(str(username), str(password))
+    if role is None:
+        raise ValueError("云账号或密码错误")
+    workspace = store.workspace(str(username))
+    launcher_id = uuid.uuid4().hex
+    token = secrets.token_urlsafe(24)
+    with _conn(instance) as conn:
+        conn.execute("""INSERT INTO launchers(id,owner,name,host,version,created_at,last_seen,token_hash,workspace)
+            VALUES(?,?,?,?,?,?,?,?,?)""",
+                     (launcher_id, str(username), str(name or "Hengjian Launcher")[:80],
+                      str(host or "")[:200], str(version or "")[:50], now(), now(),
+                      _hash(token), workspace))
+    return {"launcher_id": launcher_id, "token": token, "workspace": workspace}
+
+
 def claim(instance, code, name, host="", version=""):
     current = time.time()
     with _conn(instance) as conn:

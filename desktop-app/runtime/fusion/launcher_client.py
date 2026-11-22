@@ -97,6 +97,24 @@ def _auth(instance):
     return data
 
 
+def login(instance, cloud_url, username, password, name="Hengjian Launcher", host="", version=""):
+    cloud_url = str(cloud_url or "").strip().rstrip("/")
+    if not cloud_url.startswith(("http://", "https://")):
+        raise PolicyError("cloud_url must be http(s)")
+    if not username or not password:
+        raise PolicyError("cloud username and password required")
+    _, data = _request("POST", cloud_url + "/api/launchers/login",
+                       {"username": username, "password": password, "name": name,
+                        "host": host, "version": version})
+    if not data.get("launcher_id") or not data.get("token"):
+        raise PolicyError("cloud returned an invalid launcher")
+    record = {"cloud_url": cloud_url, "id": data["launcher_id"], "token": data["token"],
+              "name": name, "host": host, "version": version,
+              "workspace": data.get("workspace"), "paired_at": now(), "last_heartbeat": None}
+    _save(instance, record)
+    return status(instance)
+
+
 def tasks(instance):
     data = _auth(instance)
     _, payload = _request("GET", data["cloud_url"] + "/api/launcher/tasks",

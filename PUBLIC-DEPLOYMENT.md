@@ -141,3 +141,9 @@ PY
 - Issue/Launcher/配对码按 workspace 过滤
 - 旧数据默认 `w_legacy`；机器 token 保持 legacy
 - 公开实例 board 仍只有 legacy workspace；新用户看不到彼此数据
+
+## 云账号登录
+
+- 本机设置 →「连接云空间」→ 云账号/密码 → 自动创建 Launcher
+- 令牌绑定该账号的 workspace；不再必须生成配对码
+- 配对码仍保留为备用

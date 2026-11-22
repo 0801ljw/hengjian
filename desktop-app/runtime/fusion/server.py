@@ -436,6 +436,18 @@ class Handler(BaseHTTPRequestHandler):
                                              data.get("version", "")))
             except (ValueError, TypeError) as exc:
                 return self._send(400, {"error": str(exc)})
+        if path == "/api/launchers/login" and method == "POST":
+            if not registration_allow(_request_ip(self)):
+                return self._send(429, {"error": "too many launcher login attempts"})
+            try:
+                data = json.loads(body or b"{}")
+                from .launchers import login_with_credentials
+                return self._send(200, login_with_credentials(
+                    self.server.store.home, data.get("username", ""), data.get("password", ""),
+                    data.get("name", ""), data.get("host", ""), data.get("version", "")))
+            except (ValueError, TypeError) as exc:
+                return self._send(401, {"error": str(exc)})
+
         if path == "/api/launchers/pair" and method == "POST":
             if not session:
                 return self._send(403, {"error": "human session required"})
@@ -523,6 +535,19 @@ class Handler(BaseHTTPRequestHandler):
                 from .launcher_client import worker_once
                 result = worker_once(self.server.store.home, data.get("issue_id"))
                 return self._send(200, {"result": result})
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+
+        if path == "/api/launcher/login" and method == "POST":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            try:
+                data = json.loads(body or b"{}")
+                from .launcher_client import login
+                return self._send(200, login(self.server.store.home, data.get("cloud_url", ""),
+                                             data.get("username", ""), data.get("password", ""),
+                                             data.get("name", "Hengjian Launcher"),
+                                             data.get("host", ""), data.get("version", "")))
             except Exception as exc:
                 return self._send(400, {"error": str(exc)})
 
