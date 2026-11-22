@@ -89,6 +89,64 @@ def disconnect(instance):
     return status(instance)
 
 
+def _auth(instance):
+    data = _load(instance)
+    if not data.get("id") or not data.get("token"):
+        raise PolicyError("launcher is not paired")
+    return data
+
+
+def tasks(instance):
+    data = _auth(instance)
+    _, payload = _request("GET", data["cloud_url"] + "/api/launcher/tasks",
+                          token=data["token"])
+    return payload.get("tasks") or []
+
+
+def claim(instance, issue_id):
+    data = _auth(instance)
+    _, payload = _request("POST", data["cloud_url"] + f"/api/launcher/tasks/{issue_id}/claim",
+                          {}, token=data["token"])
+    return payload
+
+
+def complete(instance, issue_id, claim_token, summary, artifacts=(), checks=(), usage=None):
+    data = _auth(instance)
+    return _request("POST", data["cloud_url"] + f"/api/launcher/tasks/{issue_id}/complete",
+                    {"claim_token": claim_token, "summary": summary, "artifacts": list(artifacts),
+                     "checks": list(checks), "usage": usage}, token=data["token"])[1]
+
+
+def fail(instance, issue_id, claim_token, error, retry=True):
+    data = _auth(instance)
+    return _request("POST", data["cloud_url"] + f"/api/launcher/tasks/{issue_id}/fail",
+                    {"claim_token": claim_token, "error": str(error)[:2000],
+                     "retry": bool(retry)}, token=data["token"])[1]
+
+
+def worker_once(instance):
+    """Claim one cloud task and execute it locally; caller opts into running it."""
+    from .issue_executor import execute_issue
+    pending = tasks(instance)
+    if not pending:
+        return None
+    issue_id = pending[0]["id"]
+    claimed = claim(instance, issue_id)
+    issue = claimed["issue"]
+    try:
+        result = execute_issue(issue, instance)
+    except Exception as exc:
+        fail(instance, issue_id, claimed["claim_token"], str(exc), retry=False)
+        return {"status": "failed", "issue": issue_id, "error": str(exc)}
+    if result.get("status") == "done":
+        complete(instance, issue_id, claimed["claim_token"], result.get("summary", ""),
+                 result.get("artifacts") or [], result.get("checks") or [], result.get("usage"))
+    else:
+        fail(instance, issue_id, claimed["claim_token"], result.get("error") or result.get("status"),
+             retry=True)
+    return result
+
+
 def heartbeat(instance):
     data = _load(instance)
     if not data.get("id") or not data.get("token"):

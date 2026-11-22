@@ -469,6 +469,40 @@ class Handler(BaseHTTPRequestHandler):
             from .launchers import list_launchers
             owner = None if session.get("role") == "admin" else session["name"]
             return self._send(200, {"launchers": list_launchers(self.server.store.home, owner)})
+        if path == "/api/launcher/tasks" and method == "GET":
+            from .launchers import authenticate
+            token = self.headers.get("Authorization", "")
+            token = token[len("Bearer "):].strip() if token.startswith("Bearer ") else ""
+            launcher_id = authenticate(self.server.store.home, token)
+            if not launcher_id:
+                return self._send(401, {"error": "invalid launcher token"})
+            return self._send(200, {"tasks": self.server.issues.launcher_tasks(launcher_id)})
+        if path.startswith("/api/launcher/tasks/") and method == "POST":
+            from .launchers import authenticate
+            token = self.headers.get("Authorization", "")
+            token = token[len("Bearer "):].strip() if token.startswith("Bearer ") else ""
+            launcher_id = authenticate(self.server.store.home, token)
+            if not launcher_id:
+                return self._send(401, {"error": "invalid launcher token"})
+            parts = path.strip("/").split("/")
+            if len(parts) != 5 or parts[4] not in ("claim", "complete", "fail"):
+                return self._send(405, {"error": "unknown launcher action"})
+            issue_id = parts[3]
+            try:
+                data = json.loads(body or b"{}")
+                if parts[4] == "claim":
+                    issue, claim_token = self.server.issues.launcher_claim(issue_id, launcher_id)
+                    return self._send(200, {"issue": issue, "claim_token": claim_token})
+                if parts[4] == "complete":
+                    return self._send(200, self.server.issues.launcher_complete(
+                        issue_id, launcher_id, data.get("claim_token", ""), data.get("summary", ""),
+                        data.get("artifacts") or [], data.get("checks") or [], data.get("usage")))
+                return self._send(200, self.server.issues.launcher_fail(
+                    issue_id, launcher_id, data.get("claim_token", ""), data.get("error", "launcher failed"),
+                    retry=bool(data.get("retry", True))))
+            except (PolicyError, ValueError, TypeError) as exc:
+                return self._send(400, {"error": str(exc)})
+
         if path == "/api/launcher" and method == "GET":
             if not session:
                 return self._send(403, {"error": "human session required"})
@@ -596,7 +630,7 @@ class Handler(BaseHTTPRequestHandler):
                         max_tokens=data.get("max_tokens", 100000),
                         max_calls=data.get("max_calls", 4),
                         max_cost_usd=data.get("max_cost_usd"),
-                        actor=actor)
+                        launcher_id=data.get("launcher_id"), actor=actor)
                     return self._send(201, issue)
                 if len(parts) < 3:
                     return self._send(405, {"error": "method not allowed"})
@@ -763,6 +797,17 @@ class Handler(BaseHTTPRequestHandler):
 
         status, payload = self.server.api.handle(method, path, dict(self.headers), body)
         self._send(status, payload)
+
+
+def launcher_worker_loop(httpd, *, interval: float = 10.0) -> None:
+    if os.environ.get("DUTANG_LAUNCHER_EXECUTE") != "1":
+        return
+    from .launcher_client import worker_once
+    while not httpd.launcher_stop.wait(interval):
+        try:
+            worker_once(httpd.store.home)
+        except Exception:
+            pass
 
 
 def launcher_heartbeat_loop(httpd, *, interval: float = 30.0) -> None:
@@ -947,6 +992,9 @@ def serve(home: Path, *, host: str = "127.0.0.1", port: int = 0,
     httpd.launcher_thread = threading.Thread(
         target=launcher_heartbeat_loop, args=(httpd,), daemon=True)
     httpd.launcher_thread.start()
+    httpd.launcher_worker_thread = threading.Thread(
+        target=launcher_worker_loop, args=(httpd,), daemon=True)
+    httpd.launcher_worker_thread.start()
     httpd.lifecycle_stop = threading.Event()
     httpd.lifecycle_supervisor = threading.Thread(
         target=lifecycle_supervisor_loop, args=(httpd,), daemon=True)

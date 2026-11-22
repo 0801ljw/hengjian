@@ -108,3 +108,11 @@ PY
 - 本机 App：设置 →「连接云空间」→ 输入云空间 URL + 配对码
 - 配对后本机每 30s 心跳；云空间可看到/移除 Launcher
 - 当前只做配对/心跳，未下发任务或同步文件
+
+## 云任务下发（B 阶段）
+
+- 创建 Issue 时传 `launcher_id`
+- Launcher 调 `GET /api/launcher/tasks`
+- 领取/完成/失败：`POST /api/launcher/tasks/<id>/claim|complete|fail`
+- 当前没有创建 Issue UI；用 API/工具
+- 没有自动回收 Launcher 离线任务；running 可能卡住

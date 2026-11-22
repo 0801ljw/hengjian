@@ -79,6 +79,20 @@ def list_launchers(instance, owner=None):
     return result
 
 
+def exists(instance, launcher_id):
+    with _conn(instance) as conn:
+        return conn.execute("SELECT 1 FROM launchers WHERE id=?", (launcher_id,)).fetchone() is not None
+
+
+def authenticate(instance, token):
+    with _conn(instance) as conn:
+        rows = conn.execute("SELECT id,token_hash FROM launchers").fetchall()
+    for launcher_id, token_hash in rows:
+        if secrets.compare_digest(token_hash, _hash(token)):
+            return launcher_id
+    return None
+
+
 def heartbeat(instance, launcher_id, token):
     with _conn(instance) as conn:
         row = conn.execute("SELECT token_hash FROM launchers WHERE id=?", (launcher_id,)).fetchone()

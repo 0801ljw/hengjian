@@ -36,7 +36,8 @@ class IssueStore:
                 CREATE TABLE IF NOT EXISTS issues(
                     id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL,
                     state TEXT NOT NULL, parent_id TEXT, assignee TEXT NOT NULL,
-                    model TEXT, reviewer TEXT, approver TEXT, priority INTEGER NOT NULL DEFAULT 0,
+                    model TEXT, reviewer TEXT, approver TEXT, launcher_id TEXT,
+                    priority INTEGER NOT NULL DEFAULT 0,
                     acceptance TEXT NOT NULL, checks TEXT NOT NULL DEFAULT '[]',
                     attempts INTEGER NOT NULL DEFAULT 0, max_attempts INTEGER NOT NULL DEFAULT 3,
                     depth INTEGER NOT NULL DEFAULT 0,
@@ -85,6 +86,8 @@ class IssueStore:
                 conn.execute("ALTER TABLE issues ADD COLUMN reserved_tokens INTEGER NOT NULL DEFAULT 0")
             if "max_cost_usd" not in columns:
                 conn.execute("ALTER TABLE issues ADD COLUMN max_cost_usd REAL")
+            if "launcher_id" not in columns:
+                conn.execute("ALTER TABLE issues ADD COLUMN launcher_id TEXT")
 
     def _event(self, conn, issue_id, actor, action, detail):
         conn.execute("INSERT INTO issue_events(issue_id,at,actor,action,detail) VALUES(?,?,?,?,?)",
@@ -219,13 +222,18 @@ class IssueStore:
 
     def create(self, *, title, assignee, body="", parent_id=None, blockers=(), reviewer=None,
                approver=None, priority=0, acceptance=(), checks=(), model=None, actor="human",
-               max_attempts=3, max_tokens=100000, max_calls=4, max_cost_usd=None):
+               max_attempts=3, max_tokens=100000, max_calls=4, max_cost_usd=None,
+               launcher_id=None):
         title = str(title or "").strip()
         assignee = str(assignee or "").strip()
         if not title or len(title) > 200:
             raise PolicyError("title is required and must be <= 200 chars")
         if not assignee or len(assignee) > 100:
             raise PolicyError("assignee is required")
+        if launcher_id is not None:
+            from .launchers import exists
+            if not exists(self.store.home, str(launcher_id)):
+                raise PolicyError("launcher not found")
         if not isinstance(blockers, (list, tuple)) or len(blockers) > 32:
             raise PolicyError("blockers must be a list (max 32)")
         if not isinstance(acceptance, (list, tuple)) or len(acceptance) > 16:
@@ -275,16 +283,17 @@ class IssueStore:
                         break
             conn.execute("""
                 INSERT INTO issues(id,title,body,state,parent_id,assignee,model,reviewer,approver,
-                    priority,acceptance,checks,attempts,max_attempts,max_tokens,max_calls,max_cost_usd,depth,created_at,updated_at)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    launcher_id,priority,acceptance,checks,attempts,max_attempts,max_tokens,max_calls,max_cost_usd,depth,created_at,updated_at)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (issue_id, title, str(body or "")[:20000], state, parent_id, assignee, model,
-                  reviewer, approver, int(priority), json.dumps(list(acceptance)),
+                  reviewer, approver, launcher_id, int(priority), json.dumps(list(acceptance)),
                   json.dumps(list(checks)), 0, int(max_attempts), int(max_tokens), int(max_calls), max_cost_usd, 0, now(), now()))
             for blocker in blockers:
                 conn.execute("INSERT INTO issue_blockers(issue_id,blocker_id) VALUES(?,?)",
                              (issue_id, blocker))
             self._event(conn, issue_id, actor, "created", {"assignee": assignee, "reviewer": reviewer,
-                                                           "approver": approver, "blockers": list(blockers)})
+                                                           "approver": approver, "launcher_id": launcher_id,
+                                                           "blockers": list(blockers)})
             self._wake(conn, issue_id, "assigned")
         return self.get(issue_id)
 
@@ -484,6 +493,57 @@ class IssueStore:
             self._event(conn, issue_id, actor, "unblocked", {"blocker_id": blocker_id})
             self._refresh_blockers(conn, issue_id)
         return self.get(issue_id)
+
+    def launcher_tasks(self, launcher_id):
+        with self.store.connect() as conn:
+            rows = conn.execute("""SELECT id FROM issues WHERE launcher_id=? AND state='queued'
+                ORDER BY priority DESC, created_at LIMIT 50""", (launcher_id,)).fetchall()
+        return [self.get(row[0]) for row in rows]
+
+    def launcher_claim(self, issue_id, launcher_id):
+        import secrets
+        token = secrets.token_urlsafe(24)
+        with self.store.transaction() as conn:
+            row = conn.execute("""SELECT state,launcher_id FROM issues WHERE id=?""",
+                               (issue_id,)).fetchone()
+            if row is None or row[0] != "queued" or row[1] != launcher_id:
+                raise PolicyError("issue is not queued for this launcher")
+            conn.execute("""UPDATE issues SET state='running',claimed_by=?,claim_token=?,
+                lease_until=?,updated_at=?,revision=revision+1 WHERE id=?""",
+                         (f"launcher:{launcher_id}", token, _lease(120), now(), issue_id))
+            self._event(conn, issue_id, f"launcher:{launcher_id}", "launcher_claimed",
+                        {"launcher_id": launcher_id})
+        return self.get(issue_id), token
+
+    def launcher_complete(self, issue_id, launcher_id, claim_token, summary, artifacts=(), checks=(), usage=None):
+        if not isinstance(artifacts, (list, tuple)) or len(artifacts) > 32:
+            raise PolicyError("artifacts must be a list (max 32)")
+        with self.store.transaction() as conn:
+            row = conn.execute("""SELECT state,reviewer,approver FROM issues
+                WHERE id=? AND claim_token=? AND launcher_id=?""",
+                               (issue_id, claim_token, launcher_id)).fetchone()
+            if row is None or row[0] != "running":
+                raise PolicyError("launcher claim is not active")
+            state = "review" if row[1] or row[2] else "done"
+            conn.execute("""UPDATE issues SET state=?,claimed_by=NULL,claim_token=NULL,lease_until=NULL,
+                reserved_tokens=0,retry_at=NULL,result=?,updated_at=?,revision=revision+1 WHERE id=?""",
+                         (state, json.dumps({"summary": str(summary or "")[:12000],
+                                             "artifacts": list(artifacts), "checks": list(checks),
+                                             "usage": usage, "executed_by": f"launcher:{launcher_id}"},
+                                            ensure_ascii=False), now(), issue_id))
+            self._event(conn, issue_id, f"launcher:{launcher_id}", "launcher_completed",
+                        {"state": state})
+            if state == "review":
+                self._wake(conn, issue_id, "review_requested")
+            else:
+                self._refresh_dependents(conn, issue_id)
+        return self.get(issue_id)
+
+    def launcher_fail(self, issue_id, launcher_id, claim_token, error, retry=True):
+        issue = self.get(issue_id)
+        if issue.get("launcher_id") != launcher_id:
+            raise PolicyError("issue is not assigned to this launcher")
+        return self.fail(issue_id, claim_token, error, retry=retry)
 
     def complete(self, issue_id, claim_token, summary, artifacts=(), checks=(), usage=None):
         if not isinstance(artifacts, (list, tuple)) or len(artifacts) > 32:
