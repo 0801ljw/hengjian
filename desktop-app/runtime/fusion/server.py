@@ -410,6 +410,8 @@ class Handler(BaseHTTPRequestHandler):
                         role = "operator"
                 users.add_user(username, password, role, workspace=invited_workspace)
                 session = users.login(username, password)
+                from .workspaces import ensure
+                ensure(self.server.store.home, session["workspace"], username)
             except (AuthError, ValueError, UnicodeError):
                 return self._send(400, {"error": "用户名或密码不符合要求，或用户已存在"})
             return self._send(200, {"session": session["token"], "name": session["name"],
@@ -824,6 +826,19 @@ class Handler(BaseHTTPRequestHandler):
             from .workspaces import active_invites
             return self._send(200, {"invites": active_invites(self.server.store.home, workspace_id)})
 
+        if path == "/api/workspace" and method == "GET":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            from .workspaces import ensure, get, members
+            ensure(self.server.store.home, workspace_id, session["name"])
+            return self._send(200, {"workspace": get(self.server.store.home, workspace_id),
+                                    "members": members(self.server.store.home, workspace_id)["members"]})
+        if path == "/api/workspace/members" and method == "GET":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            from .workspaces import ensure, members
+            ensure(self.server.store.home, workspace_id, session["name"])
+            return self._send(200, members(self.server.store.home, workspace_id))
         if path == "/api/members":
             session = getattr(self, "_session", None)
             if not session or session.get("role") != "admin":
@@ -839,7 +854,9 @@ class Handler(BaseHTTPRequestHandler):
                     name = str(data.get("username") or data.get("name") or "").strip()
                     password = str(data.get("password") or "")
                     role = str(data.get("role") or "operator")
-                    users.add_user(name, password, role)
+                    users.add_user(name, password, role, workspace=workspace_id)
+                    from .workspaces import ensure
+                    ensure(self.server.store.home, workspace_id, session["name"])
                     return self._send(201, {"ok": True, "members": users.users()})
                 except Exception as exc:
                     return self._send(400, {"error": str(exc) or "invalid member"})
@@ -855,8 +872,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(409, {"error": "cannot remove your own account"})
             users = self.server.users
             target = next((u for u in users.users() if u["name"] == name), None)
-            if target is None:
+            if target is None or target.get("workspace") != workspace_id:
                 return self._send(404, {"error": "member not found"})
+            from .workspaces import get as get_workspace
+            owner = (get_workspace(self.server.store.home, workspace_id) or {}).get("owner")
+            if name == owner:
+                return self._send(409, {"error": "cannot remove the workspace owner"})
             if target["role"] == "admin" and sum(u["role"] == "admin" for u in users.users()) <= 1:
                 return self._send(409, {"error": "cannot remove the last admin"})
             users.remove_user(name)

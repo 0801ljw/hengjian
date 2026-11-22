@@ -17,6 +17,10 @@ def _conn(instance):
     path = Path(instance) / "fusion.sqlite3"
     conn = sqlite3.connect(path, timeout=5)
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS workspaces(
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, owner TEXT NOT NULL,
+            created_at REAL NOT NULL)""")
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS workspace_invites(
             code TEXT PRIMARY KEY, workspace TEXT NOT NULL, created_by TEXT NOT NULL,
             created_at REAL NOT NULL, expires_at REAL NOT NULL, used_at REAL)""")
@@ -26,6 +30,7 @@ def _conn(instance):
 def create_invite(instance, workspace, created_by, ttl=7 * 24 * 3600):
     if not str(workspace).startswith("w_"):
         raise ValueError("invalid workspace")
+    ensure(instance, workspace, created_by)
     code = secrets.token_hex(4).upper()
     current = time.time()
     with _conn(instance) as conn:
@@ -54,3 +59,33 @@ def active_invites(instance, workspace):
                             (workspace, current)).fetchall()
     return [{"code": row[0], "created_by": row[1], "created_at": row[2], "expires_at": row[3]}
             for row in rows]
+
+
+def ensure(instance, workspace, owner):
+    current = time.time()
+    with _conn(instance) as conn:
+        row = conn.execute("SELECT 1 FROM workspaces WHERE id=?", (workspace,)).fetchone()
+        if row is None:
+            conn.execute("INSERT INTO workspaces(id,name,owner,created_at) VALUES(?,?,?,?)",
+                         (workspace, workspace, owner, current))
+    return get(instance, workspace)
+
+
+def get(instance, workspace):
+    with _conn(instance) as conn:
+        row = conn.execute("SELECT id,name,owner,created_at FROM workspaces WHERE id=?",
+                           (workspace,)).fetchone()
+    if row is None:
+        return None
+    return {"id": row[0], "name": row[1], "owner": row[2], "created_at": row[3]}
+
+
+def members(instance, workspace):
+    from .users import UserStore
+    users = UserStore(Path(instance) / "auth")
+    meta = get(instance, workspace) or {"owner": None, "name": workspace}
+    rows = []
+    for user in users.users():
+        if user.get("workspace") == workspace:
+            rows.append({**user, "owner": user["name"] == meta.get("owner")})
+    return {"workspace": meta, "members": rows}

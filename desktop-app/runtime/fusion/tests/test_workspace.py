@@ -2,7 +2,7 @@ from fusion.core import Store
 from fusion.issues import IssueStore
 from fusion.tests.test_auth import call, http  # noqa: F401 - fixture
 from fusion.users import UserStore
-from fusion.workspaces import consume, create_invite
+from fusion.workspaces import consume, create_invite, ensure, members
 
 
 def test_new_users_get_distinct_workspaces(tmp_path):
@@ -36,3 +36,14 @@ def test_workspace_invite_is_one_use(tmp_path):
         assert False
     except ValueError:
         pass
+
+
+def test_workspace_members_and_owner(tmp_path):
+    users = UserStore(tmp_path / "auth")
+    users.add_user("alice", "alice-password-1", "admin", workspace="w_team")
+    users.add_user("bob", "bob-password-1", "operator", workspace="w_team")
+    ensure(tmp_path, "w_team", "alice")
+    data = members(tmp_path, "w_team")
+    assert data["workspace"]["owner"] == "alice"
+    assert {item["name"] for item in data["members"]} == {"alice", "bob"}
+    assert next(item for item in data["members"] if item["name"] == "alice")["owner"] is True

@@ -147,3 +147,9 @@ PY
 - 本机设置 →「连接云空间」→ 云账号/密码 → 自动创建 Launcher
 - 令牌绑定该账号的 workspace；不再必须生成配对码
 - 配对码仍保留为备用
+
+## Workspace 成员/owner
+
+- 设置 →「成员管理」查看当前 workspace 成员
+- owner 不能被移除；跨 workspace 不可见
+- 暂不支持切换/加入多个团队

@@ -799,10 +799,10 @@ function boot() {
     if (!list) return;
     list.replaceChildren();
     try {
-      const data = await api("/api/members");
+      const data = await api("/api/workspace/members");
       for (const member of data.members || []) {
         const item = text("li", "");
-        item.append(text("strong", member.name), text("span", ` · ${member.role}`));
+        item.append(text("strong", member.name), text("span", ` · ${member.role}${member.owner ? " · owner" : ""}`));
         if (me?.auth === "session" && me.role === "admin" && member.name !== me.name) {
           const remove = text("button", "移除");
           remove.type = "button";
@@ -817,7 +817,7 @@ function boot() {
         }
         list.append(item);
       }
-      status("members-status", `${(data.members || []).length} 名成员`);
+      status("members-status", `${(data.members || []).length} 名成员 · ${data.workspace?.name || ""} · owner ${data.workspace?.owner || "未设置"}`);
     } catch {
       status("members-status", "需要 admin 会话才能管理成员。", true);
     }
