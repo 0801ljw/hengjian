@@ -21,6 +21,10 @@ def _conn(instance):
             id TEXT PRIMARY KEY, name TEXT NOT NULL, owner TEXT NOT NULL,
             created_at REAL NOT NULL)""")
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS workspace_members(
+            workspace TEXT NOT NULL, user TEXT NOT NULL, role TEXT NOT NULL,
+            joined_at REAL NOT NULL, PRIMARY KEY(workspace,user))""")
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS workspace_invites(
             code TEXT PRIMARY KEY, workspace TEXT NOT NULL, created_by TEXT NOT NULL,
             created_at REAL NOT NULL, expires_at REAL NOT NULL, used_at REAL)""")
@@ -64,10 +68,15 @@ def active_invites(instance, workspace):
 def ensure(instance, workspace, owner):
     current = time.time()
     with _conn(instance) as conn:
-        row = conn.execute("SELECT 1 FROM workspaces WHERE id=?", (workspace,)).fetchone()
+        row = conn.execute("SELECT owner FROM workspaces WHERE id=?", (workspace,)).fetchone()
         if row is None:
             conn.execute("INSERT INTO workspaces(id,name,owner,created_at) VALUES(?,?,?,?)",
                          (workspace, workspace, owner, current))
+            actual_owner = owner
+        else:
+            actual_owner = row[0]
+        conn.execute("""INSERT OR IGNORE INTO workspace_members(workspace,user,role,joined_at)
+            VALUES(?,?,?,?)""", (workspace, actual_owner, "owner", current))
     return get(instance, workspace)
 
 
@@ -84,8 +93,56 @@ def members(instance, workspace):
     from .users import UserStore
     users = UserStore(Path(instance) / "auth")
     meta = get(instance, workspace) or {"owner": None, "name": workspace}
-    rows = []
-    for user in users.users():
-        if user.get("workspace") == workspace:
-            rows.append({**user, "owner": user["name"] == meta.get("owner")})
-    return {"workspace": meta, "members": rows}
+    by_name = {user["name"]: user for user in users.users()}
+    with _conn(instance) as conn:
+        rows = conn.execute("""SELECT user,role FROM workspace_members WHERE workspace=?
+            ORDER BY joined_at""", (workspace,)).fetchall()
+    if not rows:
+        rows = [(user["name"], "owner" if user["name"] == meta.get("owner") else "member")
+                for user in by_name.values() if user.get("workspace") == workspace]
+    else:
+        seen = {row[0] for row in rows}
+        for user in by_name.values():
+            if user.get("workspace") == workspace and user["name"] not in seen:
+                rows.append((user["name"], "owner" if user["name"] == meta.get("owner") else "member"))
+    result = []
+    for name, role in rows:
+        user = by_name.get(name)
+        if user is None:
+            continue
+        result.append({**user, "workspace_role": role, "owner": name == meta.get("owner")})
+    return {"workspace": meta, "members": result}
+
+
+def add_member(instance, workspace, user, role="member"):
+    if role not in ("owner", "admin", "member"):
+        raise ValueError("invalid workspace role")
+    ensure(instance, workspace, user)
+    with _conn(instance) as conn:
+        conn.execute("""INSERT INTO workspace_members(workspace,user,role,joined_at) VALUES(?,?,?,?)
+            ON CONFLICT(workspace,user) DO UPDATE SET role=excluded.role""",
+                     (workspace, user, role, time.time()))
+
+
+def user_workspaces(instance, user, primary=None):
+    if primary:
+        ensure(instance, primary, user)
+    with _conn(instance) as conn:
+        rows = conn.execute("""SELECT w.id,w.name,w.owner,m.role
+            FROM workspace_members m JOIN workspaces w ON w.id=m.workspace
+            WHERE m.user=? ORDER BY m.joined_at""", (user,)).fetchall()
+    return [{"id": row[0], "name": row[1], "owner": row[2], "role": row[3]} for row in rows]
+
+
+def membership(instance, workspace, user):
+    with _conn(instance) as conn:
+        row = conn.execute("SELECT role FROM workspace_members WHERE workspace=? AND user=?",
+                           (workspace, user)).fetchone()
+    return row[0] if row else None
+
+
+def remove_member(instance, workspace, user):
+    with _conn(instance) as conn:
+        cur = conn.execute("DELETE FROM workspace_members WHERE workspace=? AND user=?",
+                           (workspace, user))
+        return cur.rowcount == 1

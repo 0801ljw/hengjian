@@ -153,3 +153,10 @@ PY
 - 设置 →「成员管理」查看当前 workspace 成员
 - owner 不能被移除；跨 workspace 不可见
 - 暂不支持切换/加入多个团队
+
+## 多 Workspace
+
+- 设置 →「Workspace」切换/加入
+- 一个账号可加入多个 Workspace
+- primary membership 登录时自动补齐
+- 没有退出/转让 owner

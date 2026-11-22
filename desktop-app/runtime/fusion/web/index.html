@@ -406,6 +406,19 @@
     </section>
 
     <section class="drawer-section">
+      <h3>Workspace</h3>
+      <p id="workspace-status" class="status-line" role="status" aria-live="polite"></p>
+      <div class="field-row">
+        <label class="field"><span>当前 Workspace</span><select id="workspace-select"></select></label>
+        <label class="field"><span>加入邀请码</span><input id="workspace-join-code" maxlength="8" autocomplete="off"></label>
+      </div>
+      <div class="drawer-actions">
+        <button id="workspace-switch" class="btn" type="button">切换</button>
+        <button id="workspace-join" class="btn btn-quiet" type="button">加入 Workspace</button>
+      </div>
+    </section>
+
+    <section class="drawer-section">
       <h3>成员管理</h3>
       <p class="fineprint">仅 admin；新成员默认 operator，创建后可在自己的浏览器登录。</p>
       <p id="members-status" class="status-line" role="status" aria-live="polite">需要 admin 会话。</p>

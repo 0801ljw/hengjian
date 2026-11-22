@@ -121,7 +121,7 @@ class UserStore:
         token = secrets.token_urlsafe(32)
         sessions = self._load_sessions()
         sessions.append({"token_sha256": hashlib.sha256(token.encode()).hexdigest(),
-                         "name": name, "role": role,
+                         "name": name, "role": role, "workspace": self.workspace(name),
                          "expires_at": time.time() + ttl_sec})
         _atomic_write(self.sessions_path, {"sessions": sessions})
         return {"token": token, "name": name, "role": role,
@@ -137,8 +137,21 @@ class UserStore:
                 if user is None:
                     return None
                 return {"name": user["name"], "role": user["role"],
-                        "workspace": user.get("workspace", "w_legacy")}
+                        "workspace": s.get("workspace") or user.get("workspace", "w_legacy")}
         return None
+
+    def switch_workspace(self, token: str, workspace: str) -> bool:
+        digest = hashlib.sha256(token.encode()).hexdigest()
+        sessions = self._load_sessions()
+        found = False
+        for session in sessions:
+            if hmac.compare_digest(session["token_sha256"], digest):
+                session["workspace"] = workspace
+                found = True
+                break
+        if found:
+            _atomic_write(self.sessions_path, {"sessions": sessions})
+        return found
 
     def logout(self, token: str) -> bool:
         digest = hashlib.sha256(token.encode()).hexdigest()

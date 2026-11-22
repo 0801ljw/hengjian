@@ -410,8 +410,10 @@ class Handler(BaseHTTPRequestHandler):
                         role = "operator"
                 users.add_user(username, password, role, workspace=invited_workspace)
                 session = users.login(username, password)
-                from .workspaces import ensure
+                from .workspaces import add_member, ensure
                 ensure(self.server.store.home, session["workspace"], username)
+                add_member(self.server.store.home, session["workspace"], username,
+                           "member" if invited_workspace else "owner")
             except (AuthError, ValueError, UnicodeError):
                 return self._send(400, {"error": "用户名或密码不符合要求，或用户已存在"})
             return self._send(200, {"session": session["token"], "name": session["name"],
@@ -422,6 +424,8 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 data = json.loads(body.decode("utf-8") or "{}")
                 session = users.login(str(data.get("username", "")), str(data.get("password", "")))
+                from .workspaces import ensure
+                ensure(self.server.store.home, session["workspace"], session["name"])
             except (AuthError, ValueError):
                 return self._send(401, {"error": "invalid credentials"})
             return self._send(200, {"session": session["token"], "name": session["name"],
@@ -811,8 +815,12 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/workspaces/invite" and method == "POST":
             session = getattr(self, "_session", None)
-            if not session or session.get("role") != "admin":
-                return self._send(403 if session else 401, {"error": "admin session required"})
+            if not session:
+                return self._send(401, {"error": "human session required"})
+            from .workspaces import membership as workspace_membership
+            if session.get("role") != "admin" and workspace_membership(
+                    self.server.store.home, workspace_id, session["name"]) not in ("owner", "admin"):
+                return self._send(403, {"error": "workspace owner/admin required"})
             try:
                 from .workspaces import create_invite
                 return self._send(200, create_invite(self.server.store.home,
@@ -825,6 +833,38 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(403 if session else 401, {"error": "admin session required"})
             from .workspaces import active_invites
             return self._send(200, {"invites": active_invites(self.server.store.home, workspace_id)})
+
+        if path == "/api/workspaces" and method == "GET":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            from .workspaces import user_workspaces
+            return self._send(200, {"workspaces": user_workspaces(
+                self.server.store.home, session["name"], workspace_id)})
+        if path == "/api/workspace/switch" and method == "POST":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            try:
+                data = json.loads(body or b"{}")
+                target = str(data.get("workspace") or "")
+                from .workspaces import membership
+                if not membership(self.server.store.home, target, session["name"]):
+                    return self._send(403, {"error": "not a member of this workspace"})
+                self.server.users.switch_workspace(self._session_token, target)
+                return self._send(200, {"ok": True, "workspace": target})
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+        if path == "/api/workspace/join" and method == "POST":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            try:
+                data = json.loads(body or b"{}")
+                from .workspaces import add_member, consume
+                target = consume(self.server.store.home, data.get("invite", ""))
+                add_member(self.server.store.home, target, session["name"], "member")
+                self.server.users.switch_workspace(self._session_token, target)
+                return self._send(200, {"ok": True, "workspace": target})
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
 
         if path == "/api/workspace" and method == "GET":
             if not session:
@@ -841,8 +881,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, members(self.server.store.home, workspace_id))
         if path == "/api/members":
             session = getattr(self, "_session", None)
-            if not session or session.get("role") != "admin":
-                return self._send(403 if session else 401, {"error": "admin session required"})
+            if not session:
+                return self._send(401, {"error": "human session required"})
+            from .workspaces import membership as workspace_membership
+            if session.get("role") != "admin" and workspace_membership(
+                    self.server.store.home, workspace_id, session["name"]) not in ("owner", "admin"):
+                return self._send(403, {"error": "workspace owner/admin required"})
             users = self.server.users
             if method == "GET":
                 return self._send(200, {"members": users.users()})
@@ -855,16 +899,21 @@ class Handler(BaseHTTPRequestHandler):
                     password = str(data.get("password") or "")
                     role = str(data.get("role") or "operator")
                     users.add_user(name, password, role, workspace=workspace_id)
-                    from .workspaces import ensure
+                    from .workspaces import add_member, ensure
                     ensure(self.server.store.home, workspace_id, session["name"])
+                    add_member(self.server.store.home, workspace_id, name, "member")
                     return self._send(201, {"ok": True, "members": users.users()})
                 except Exception as exc:
                     return self._send(400, {"error": str(exc) or "invalid member"})
             return self._send(405, {"error": "method not allowed"})
         if path.startswith("/api/members/") and method == "DELETE":
             session = getattr(self, "_session", None)
-            if not session or session.get("role") != "admin":
-                return self._send(403 if session else 401, {"error": "admin session required"})
+            if not session:
+                return self._send(401, {"error": "human session required"})
+            from .workspaces import membership as workspace_membership
+            if session.get("role") != "admin" and workspace_membership(
+                    self.server.store.home, workspace_id, session["name"]) not in ("owner", "admin"):
+                return self._send(403, {"error": "workspace owner/admin required"})
             name = path.removeprefix("/api/members/").strip()
             if not name or "/" in name:
                 return self._send(400, {"error": "invalid member name"})

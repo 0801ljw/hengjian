@@ -794,6 +794,43 @@ function boot() {
     }
   }
 
+  async function refreshWorkspaces() {
+    const select = $("workspace-select");
+    try {
+      const data = await api("/api/workspaces");
+      select.replaceChildren();
+      for (const item of data.workspaces || []) {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = `${item.name} · ${item.role}`;
+        select.append(option);
+      }
+      if (me?.workspace) select.value = me.workspace;
+      status("workspace-status", (data.workspaces || []).length
+        ? `${data.workspaces.length} 个 Workspace` : "没有 Workspace");
+    } catch {
+      status("workspace-status", "需要登录后管理 Workspace。", true);
+    }
+  }
+
+  async function switchWorkspace() {
+    try {
+      await api("/api/workspace/switch", {
+        method: "POST", body: JSON.stringify({ workspace: $("workspace-select").value }),
+      });
+      location.reload();
+    } catch (error) { status("workspace-status", error.message, true); }
+  }
+
+  async function joinWorkspace() {
+    try {
+      await api("/api/workspace/join", {
+        method: "POST", body: JSON.stringify({ invite: $("workspace-join-code").value.trim() }),
+      });
+      location.reload();
+    } catch (error) { status("workspace-status", error.message, true); }
+  }
+
   async function refreshMembers() {
     const list = $("members-list");
     if (!list) return;
@@ -1160,6 +1197,8 @@ function boot() {
   });
   $("policy-save").addEventListener("click", savePolicy);
   $("pricing-save").addEventListener("click", savePricing);
+  $("workspace-switch").addEventListener("click", switchWorkspace);
+  $("workspace-join").addEventListener("click", joinWorkspace);
   $("member-add").addEventListener("click", addMember);
   $("member-invite").addEventListener("click", createWorkspaceInvite);
   $("launcher-pair").addEventListener("click", pairLauncher);
@@ -1632,6 +1671,7 @@ function boot() {
     refreshPricing();
     refreshAlerts();
     refreshMembers();
+    refreshWorkspaces();
     refreshLauncherStatus();
     refreshLaunchers();
     refreshCloudTasks();
