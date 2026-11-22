@@ -1,0 +1,1 @@
+{"actor":"shangshu","created_at":"2026-11-06T06:57:39.102783+00:00","id":"f7483b2962c94b68bfbfa3ccad439806","payload_sha256":"9b4654b0203b90ae291ab42f2cd516182818afc1c68dfbdd63e06c7cd9dad708","reason":"验收模型生成文件，申请完结","recipient":null,"revision":9,"run_id":"ai:8f8d4225d0094425adc051881b05feda:shangshu","scope":{"command":"state","from":"Review","to":"Done"},"task_id":"AI-P3-002"}

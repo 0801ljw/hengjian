@@ -1,0 +1,302 @@
+[
+  {
+    "id": "claude",
+    "title": "Claude Code",
+    "vendor": "Anthropic",
+    "description": "推理与审查能力强；默认承担门下封驳。",
+    "roles": [
+      "门下"
+    ],
+    "integrated": true,
+    "installable": true,
+    "docs": "https://docs.anthropic.com/en/docs/claude-code"
+  },
+  {
+    "id": "openclaw",
+    "title": "OpenClaw",
+    "vendor": "Open source",
+    "description": "多通道 AI gateway；通过纯推理 CLI 接入调度。",
+    "roles": [],
+    "integrated": true,
+    "installable": true,
+    "docs": "https://openclaw.ai/"
+  },
+  {
+    "id": "codex",
+    "title": "OpenAI Codex CLI",
+    "vendor": "OpenAI",
+    "description": "终端编码 agent；结构化输出稳定，默认承担中书与工部。",
+    "roles": [
+      "中书",
+      "工部"
+    ],
+    "integrated": true,
+    "installable": true,
+    "docs": "https://github.com/openai/codex"
+  },
+  {
+    "id": "cursor-agent",
+    "title": "Cursor Agent",
+    "vendor": "Anysphere",
+    "description": "已接入 CLI 调度；可在角色绑定中选用。",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://docs.cursor.com/en/cli/overview"
+  },
+  {
+    "id": "opencode",
+    "title": "OpenCode",
+    "vendor": "OpenCode",
+    "description": "已接入 CLI 调度；可在角色绑定中选用。",
+    "roles": [],
+    "integrated": true,
+    "installable": true,
+    "docs": "https://opencode.ai/docs/"
+  },
+  {
+    "id": "hermes",
+    "title": "Hermes Agent",
+    "vendor": "Nous Research",
+    "description": "带工具、记忆与 profile 的自我改进 agent；适合高频判定。",
+    "roles": [
+      "太子"
+    ],
+    "integrated": true,
+    "installable": false,
+    "docs": "https://hermes-agent.nousresearch.com/docs/getting-started/installation/"
+  },
+  {
+    "id": "kimi",
+    "title": "Kimi Code CLI",
+    "vendor": "Moonshot AI",
+    "description": "Kimi Code CLI — Moonshot AI's terminal coding agent.",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://moonshotai.github.io/kimi-code"
+  },
+  {
+    "id": "copilot",
+    "title": "GitHub Copilot CLI",
+    "vendor": "GitHub",
+    "description": "终端 Copilot agent；已接入 CLI 调度。",
+    "roles": [],
+    "integrated": true,
+    "installable": true,
+    "docs": "https://github.com/github/copilot-cli"
+  },
+  {
+    "id": "goose",
+    "title": "Goose",
+    "vendor": "Block",
+    "description": "An open-source AI developer agent by Block (CLI — Beta)",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://github.com/block/goose"
+  },
+  {
+    "id": "aider",
+    "title": "Aider",
+    "vendor": "Aider",
+    "description": "已接入 CLI 调度；可在角色绑定中选用。",
+    "roles": [],
+    "integrated": false,
+    "installable": true,
+    "docs": "https://aider.chat/docs/install.html"
+  },
+  {
+    "id": "amp",
+    "title": "Amp (Sourcegraph)",
+    "vendor": "Sourcegraph",
+    "description": "Sourcegraph's AI coding agent for CLI and VS Code",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://ampcode.com"
+  },
+  {
+    "id": "cline",
+    "title": "Cline",
+    "vendor": "Cline Bot",
+    "description": "Autonomous coding agent CLI by Cline Bot",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://github.com/cline/cline"
+  },
+  {
+    "id": "gemini",
+    "title": "Gemini CLI",
+    "vendor": "Google",
+    "description": "已接入 CLI 调度；可在角色绑定中选用。",
+    "roles": [],
+    "integrated": true,
+    "installable": true,
+    "docs": "https://github.com/google-gemini/gemini-cli"
+  },
+  {
+    "id": "antigravity",
+    "title": "Antigravity CLI",
+    "vendor": "Google",
+    "description": "Google's agent-first CLI (agy) — the successor to Gemini CLI",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://antigravity.google"
+  },
+  {
+    "id": "nanoclaw",
+    "title": "NanoClaw",
+    "vendor": "Open source",
+    "description": "Containerized agent runtime — each Agent Group runs in its own Docker container (Claude Agent SDK). Bridged to the Workspace via a native OpenAgents channel.",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://github.com/nanocoai/nanoclaw"
+  },
+  {
+    "id": "mini-swe-agent",
+    "title": "mini-SWE-agent",
+    "vendor": "SWE-agent",
+    "description": "A minimal shell-based coding agent for fixing issues and modifying code in a workspace.",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://mini-swe-agent.com"
+  },
+  {
+    "id": "pi",
+    "title": "Pi",
+    "vendor": "Earendil Works",
+    "description": "轻量、低成本的编码 agent；适合太子分拣与尚书派发。",
+    "roles": [
+      "太子",
+      "尚书"
+    ],
+    "integrated": true,
+    "installable": true,
+    "docs": "https://github.com/earendil-works/pi"
+  },
+  {
+    "id": "deepseek",
+    "title": "DeepSeek Harness",
+    "vendor": "DeepSeek",
+    "description": "DeepSeek's open-source agent harness (dsh) driven in headless one-shot mode",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://github.com/deepseek-ai/deepseek-harness"
+  },
+  {
+    "id": "commandcode",
+    "title": "Command Code",
+    "vendor": "Command Code",
+    "description": "Terminal coding agent that learns your coding taste, driven headlessly for workspace tasks",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://commandcode.ai"
+  },
+  {
+    "id": "openworker",
+    "title": "OpenWorker",
+    "vendor": "OpenWorker",
+    "description": "Local-first agent coworker driven headlessly through its own server",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://openworker.com"
+  },
+  {
+    "id": "codebuddy",
+    "title": "WorkBuddy (CodeBuddy)",
+    "vendor": "Tencent",
+    "description": "Tencent WorkBuddy's agent engine (the CodeBuddy Code CLI), driven headlessly — same account and credits as the WorkBuddy desktop app; its built-in office plugins are not included",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://www.codebuddy.ai"
+  },
+  {
+    "id": "codearts",
+    "title": "CodeArts Agent (码道)",
+    "vendor": "Huawei Cloud",
+    "description": "Huawei Cloud's CodeArts code agent CLI (码道), driven headlessly",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://codearts.huaweicloud.com"
+  },
+  {
+    "id": "mimo-code",
+    "title": "MiMo Code",
+    "vendor": "Xiaomi MiMo",
+    "description": "Xiaomi's terminal coding agent for MiMo models, driven headless",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://github.com/XiaomiMiMo/MiMo-Code"
+  },
+  {
+    "id": "qoder",
+    "title": "Qoder CLI",
+    "vendor": "Qoder",
+    "description": "Qoder's terminal coding agent (qoder.com), driven headless",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://qoder.com/cli"
+  },
+  {
+    "id": "qoder-cn",
+    "title": "Qoder CLI CN",
+    "vendor": "Qoder",
+    "description": "Qoder's terminal coding agent, China edition (qoder.com.cn), driven headless",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://qoder.com.cn/cli"
+  },
+  {
+    "id": "qwen",
+    "title": "Qwen Code",
+    "vendor": "Alibaba",
+    "description": "Qwen 终端编码 agent；已接入 CLI 调度。",
+    "roles": [],
+    "integrated": true,
+    "installable": true,
+    "docs": "https://github.com/QwenLM/qwen-code"
+  },
+  {
+    "id": "kiro",
+    "title": "Kiro",
+    "vendor": "Amazon",
+    "description": "Kiro's terminal coding agent (kiro-cli), driven over the Agent Client Protocol",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://kiro.dev/cli/"
+  },
+  {
+    "id": "cursor",
+    "title": "Cursor",
+    "vendor": "Cursor",
+    "description": "AI-powered code editor with agent mode CLI",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://cursor.com"
+  },
+  {
+    "id": "qwen-code",
+    "title": "Qwen Code",
+    "vendor": "Alibaba Qwen",
+    "description": "Alibaba's open-source terminal coding agent for Qwen models, driven headless",
+    "roles": [],
+    "integrated": false,
+    "installable": false,
+    "docs": "https://github.com/QwenLM/qwen-code"
+  }
+]

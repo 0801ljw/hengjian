@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>初始化向导 · 衡鉴 · 点将台</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/onboarding.js" defer></script>
+</head>
+<body>
+<main class="onboarding">
+  <header><span>三省六部 · 初始化向导</span><button id="ob-theme" type="button">主题：宣纸</button></header>
+  <p id="ob-progress" aria-live="polite">第 1 页 / 3 · 选择运行方式</p>
+  <section id="ob-step1" aria-labelledby="ob-title1">
+    <h1 id="ob-title1" tabindex="-1">选择如何运行整套系统</h1>
+    <div class="ob-choices">
+      <article class="ob-card">
+        <h2>① 单个 Agent</h2>
+        <p>优点：装一个就能用，初始化 30 秒；只维护一份登录和密钥；五个角色行为一致，出问题好排查；只买一个 agent 的额度。</p>
+        <p>缺点：门下省和中书省同源——同一个模型审自己写的计划，封驳容易变成走过场；单点故障，这个 agent 限流或挂了整条链停；没法按角色分配成本，太子这种高频判定也得用贵模型；升级受制于单一厂商。</p>
+        <button id="ob-single" type="button">单个 Agent 跑整套系统</button>
+      </article>
+      <article class="ob-card">
+        <h2>② 多个 Agent <small>（推荐）</small></h2>
+        <p>优点：门下省可以绑不同厂商，形成真正的独立审查；按能力分配，太子/尚书用便宜的、中书/工部用强的；贵模型只花在瓶颈位置；一个 agent 挂了可以换，不至于全停。</p>
+        <p>缺点：要装 2–3 个 agent，磁盘和密钥都多几份；初始化要逐个绑角色；不同品牌 prompt 行为有差异，调优成本更高；每个角色都配贵的，总价比单 agent 高。</p>
+        <button id="ob-multi" type="button">多个 Agent 跑整套系统</button>
+      </article>
+    </div>
+  </section>
+  <section id="ob-step2" hidden aria-labelledby="ob-title2">
+    <h1 id="ob-title2" tabindex="-1">绑定 Agent</h1>
+    <p>推荐只是推荐，你可以自由改选已探测到的 Agent。</p>
+    <form id="ob-login" hidden>
+      <p>已有用户的实例需要管理员登录；一键安装始终需要管理员会话。</p>
+      <label>用户名 <input id="ob-username" autocomplete="username" required></label>
+      <label>密码 <input id="ob-password" type="password" autocomplete="current-password" required></label>
+      <button type="submit">管理员登录</button>
+      <button id="ob-show-register" type="button" class="ob-secondary">注册新用户</button>
+    </form>
+    <form id="ob-register" hidden>
+      <p>首次注册会成为管理员；已有用户的实例注册为普通操作员。注册后会自动登录。</p>
+      <label>用户名 <input id="ob-reg-username" autocomplete="username" required></label>
+      <label>密码 <input id="ob-reg-password" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label>确认密码 <input id="ob-reg-confirm" type="password" autocomplete="new-password" minlength="8" required></label>
+      <button type="submit">注册并登录</button>
+      <button id="ob-cancel-register" type="button" class="ob-secondary">返回登录</button>
+    </form>
+    <div id="ob-catalog" class="ob-catalog" aria-live="polite"></div>
+    <div id="ob-recommendations" class="ob-recommendations"></div>
+    <div id="ob-config"></div>
+    <div id="ob-installs"></div>
+    <pre id="ob-install-log" aria-live="polite"></pre>
+    <div class="ob-actions">
+      <button id="ob-back" type="button">返回</button>
+      <button id="ob-refresh" type="button">重新探测</button>
+      <button id="ob-start" type="button" disabled>开始使用</button>
+    </div>
+  </section>
+  <section id="ob-step3" hidden aria-labelledby="ob-title3">
+    <h1 id="ob-title3" tabindex="-1">确认配置</h1>
+    <div id="ob-summary"></div>
+    <p>绑定已保存。进入工作台后可在角色绑定面板继续配置。</p>
+    <a href="/">进入工作台</a>
+  </section>
+  <p id="ob-status" role="status" aria-live="polite"></p>
+
+    <section class="explainer" aria-labelledby="explainer-title">
+      <h2 id="explainer-title">这套系统是什么</h2>
+
+      <details>
+        <summary>三省六部制：把「决策—审核—执行」拆开互相制衡</summary>
+        <p>三省六部制成型于隋、完备于唐，是把决策、审核、执行拆开互相制衡的中央官制。</p>
+        <p><strong>中书省</strong>起草诏令，<strong>门下省</strong>审核并可封驳（驳回要退回重写），
+           <strong>尚书省</strong>总领执行，下设六部：吏部（官吏任免考核）、户部（户籍财政）、
+           礼部（礼仪科举外交）、兵部（军事）、刑部（司法刑狱）、工部（工程营造）。</p>
+        <p>它的精髓不是分工本身，而是<strong>门下省有权说「不准」</strong>——决策者不能自己批自己。</p>
+      </details>
+
+      <details>
+        <summary>本系统的五个角色</summary>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>角色</th><th>职责</th><th>对应历史</th></tr></thead>
+            <tbody>
+              <tr><td>太子</td><td>判定请求是任务还是闲聊，规范化需求</td><td><em>本系统扩展</em>，非三省六部建制</td></tr>
+              <tr><td>中书省</td><td>规划子任务、依赖顺序与验收标准</td><td>中书省</td></tr>
+              <tr><td>门下省</td><td>独立审查，可封驳并要求修订</td><td>门下省</td></tr>
+              <tr><td>尚书省</td><td>按依赖排序派发</td><td>尚书省</td></tr>
+              <tr><td>工部</td><td>真实读写文件、产出交付物</td><td>工部</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">诚实说明：六部中目前只落地了<strong>工部</strong>作为执行单元；
+          吏、户、礼、兵、刑五部是历史建制，本系统尚未拆分实现。</p>
+      </details>
+
+      <details open>
+        <summary>这套系统的长板</summary>
+        <ol class="merits">
+          <li><strong>真干活，不是聊天</strong>——能读你给的文件、写真实文件、跑命令，产物有哈希可核对。</li>
+          <li><strong>每一步留痕</strong>——谁在什么时间、用哪个模型、以什么理由做了决定，全部可回溯。</li>
+          <li><strong>封驳是真的</strong>——门下省由不同厂商的模型担任时，坏计划会被打回并列出修订要求。</li>
+          <li><strong>花钱可控</strong>——公司级与 agent 级双层预算，未定价用量记「未知」而不是 0。</li>
+          <li><strong>崩了能恢复</strong>——租约加 fencing 令牌，老进程复活写入会被拒绝，不会重复执行。</li>
+          <li><strong>高风险必须人签</strong>——审批用 Ed25519 离线签名，私钥只在你自己设备上。</li>
+          <li><strong>不锁死厂商</strong>——五个角色可绑不同 agent，换模型不用重写。</li>
+        </ol>
+      </details>
+
+      <details open>
+        <summary>它能解决什么问题</summary>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>常见问题</th><th>这套系统怎么解</th></tr></thead>
+            <tbody>
+              <tr><td>AI 说「做完了」，其实没做</td><td>产物落盘加 SHA-256 可核对，跑失败就标失败</td></tr>
+              <tr><td>同一个模型自己规划自己审</td><td>门下省可绑不同厂商，同源时系统会警告</td></tr>
+              <tr><td>长任务跑飞、重复执行</td><td>租约加令牌，越权写入被拒</td></tr>
+              <tr><td>成本失控 / 账单看不懂</td><td>双层预算，未知成本不记 0</td></tr>
+              <tr><td>高风险动作没人把关</td><td>离线私钥签名，签不了就走不完</td></tr>
+              <tr><td>换个模型要重写胶水</td><td>角色绑定表，一行命令搞定</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+</main>
+</body>
+</html>

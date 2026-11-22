@@ -1,0 +1,6 @@
+desktop-app/build/
+desktop-app/dist/
+desktop-app/.build-venv/
+*.pyc
+__pycache__/
+.DS_Store

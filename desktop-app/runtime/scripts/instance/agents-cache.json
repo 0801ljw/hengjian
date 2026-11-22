@@ -1,0 +1,102 @@
+{
+  "schema": 1,
+  "context": {
+    "home": "/home/ljw",
+    "codex_home": "/home/ljw/.codex",
+    "path": "/home/ljw/.cache/uv/archive-v0/6NiCIHf2hO-0NTyM/bin:/home/ljw/.local/bin:/home/ljw/.local/node/bin:/usr/local/bin:/usr/bin:/bin:/usr/games"
+  },
+  "agents": {
+    "codex": {
+      "found": true,
+      "path": "/home/ljw/.local/node/bin/codex",
+      "version": "codex-cli 0.166.0",
+      "config_dir": "/home/ljw/.codex",
+      "config_exists": true,
+      "model": "gpt-6.1-sol",
+      "model_providers": [
+        "deepseek",
+        "modelflare",
+        "penguinapi"
+      ],
+      "config_status": "read"
+    },
+    "hermes": {
+      "found": true,
+      "path": "/home/ljw/.local/bin/hermes",
+      "version": "Hermes Agent v0.22.7 (2026.9.24) · stable · local b200f5bc60e3 Install directory: /home/ljw/.hermes/hermes-agent Install method: git Python: 3.14.9 OpenAI SDK: 2.54.0 Update available — run 'hermes update'",
+      "config_dir": "/home/ljw/.hermes",
+      "config_exists": true,
+      "profiles": [
+        "film",
+        "kepler",
+        "openagents",
+        "studio",
+        "work",
+        "workspace"
+      ]
+    },
+    "pi": {
+      "found": true,
+      "path": "/home/ljw/.local/node/bin/pi",
+      "version": "1.5.0",
+      "config_dir": "/home/ljw/.pi",
+      "config_exists": true
+    },
+    "claude": {
+      "found": true,
+      "path": "/home/ljw/.local/node/bin/claude",
+      "version": "2.1.318 (Claude Code)",
+      "config_dir": "/home/ljw/.claude",
+      "config_exists": true
+    },
+    "gemini": {
+      "found": false,
+      "path": null,
+      "version": null,
+      "config_dir": "/home/ljw/.gemini",
+      "config_exists": false
+    },
+    "aider": {
+      "found": false,
+      "path": null,
+      "version": null,
+      "config_dir": "/home/ljw/.aider",
+      "config_exists": false
+    },
+    "cursor-agent": {
+      "found": false,
+      "path": null,
+      "version": null,
+      "config_dir": "/home/ljw/.cursor",
+      "config_exists": false
+    },
+    "opencode": {
+      "found": true,
+      "path": "/home/ljw/.local/node/bin/opencode",
+      "version": "1.19.5",
+      "config_dir": "/home/ljw/.config/opencode",
+      "config_exists": true
+    },
+    "openclaw": {
+      "found": true,
+      "path": "/home/ljw/.local/node/bin/openclaw",
+      "version": "OpenClaw 2026.11.2 (b556fdf)",
+      "config_dir": "/home/ljw/.openclaw",
+      "config_exists": true
+    },
+    "qwen": {
+      "found": false,
+      "path": null,
+      "version": null,
+      "config_dir": "/home/ljw/.qwen",
+      "config_exists": false
+    },
+    "copilot": {
+      "found": false,
+      "path": null,
+      "version": null,
+      "config_dir": "/home/ljw/.copilot",
+      "config_exists": false
+    }
+  }
+}

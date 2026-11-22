@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <title>登录 · 衡鉴 · 点将台</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="login.js" defer></script>
+</head>
+<body class="login-page">
+<main class="login-shell" aria-labelledby="login-title">
+  <p class="panel-kicker">衡鉴 · 点将台</p>
+  <h1 id="login-title">登录或注册</h1>
+  <p class="login-sub">注册即可进入工作台。第一个注册账号成为管理员；之后的账号为普通成员。</p>
+  <div class="login-tabs" role="tablist">
+    <button id="tab-login" type="button" role="tab" aria-selected="true">登录</button>
+    <button id="tab-register" type="button" role="tab" aria-selected="false">注册</button>
+  </div>
+  <form id="form-login" class="login-form">
+    <label>用户名<input id="login-name" autocomplete="username" required></label>
+    <label>密码<input id="login-password" type="password" autocomplete="current-password" required></label>
+    <button type="submit">登录</button>
+  </form>
+  <form id="form-register" class="login-form" hidden>
+    <label>用户名<input id="register-name" autocomplete="username" required></label>
+    <label>密码<input id="register-password" type="password" autocomplete="new-password" minlength="8" required></label>
+    <label>确认密码<input id="register-confirm" type="password" autocomplete="new-password" minlength="8" required></label>
+    <button type="submit">注册并进入</button>
+  </form>
+  <p id="login-status" class="status-line" role="status" aria-live="polite"></p>
+  <a class="login-back" href="/">返回工作台</a>
+</main>
+</body>
+</html>

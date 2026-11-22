@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="description" content="衡鉴 · 点将台：三省六部制度下的本地任务编排与决策留痕台">
+  <meta property="og:title" content="衡鉴 · 点将台">
+  <meta property="og:description" content="三省六部制度下的本地任务编排与决策留痕。">
+  <title>衡鉴 · 点将台</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">跳到正文</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#main" aria-label="衡鉴点将台">
+        <span class="brand-seal" aria-hidden="true"><i>都</i><i>堂</i></span>
+        <span class="brand-text">
+          <span class="brand-eyebrow">Imperial Flow · Council</span>
+          <span class="brand-name">衡鉴 <em>点将台</em></span>
+        </span>
+      </a>
+      <nav class="topnav" aria-label="页面导航">
+        <a href="#overview">总览</a>
+        <a href="#cases">案卷</a>
+        <a href="#issues">牌票</a>
+        <a href="#detail">奏疏</a>
+        <a href="#merit">功过</a>
+      </nav>
+      <div class="topbar-actions">
+        <div class="topbar-meta">
+          <span class="conn" id="conn-chip" title="连接状态">
+            <i id="conn-dot" class="conn-dot" aria-hidden="true"></i>
+            <span id="conn-label">未连接</span>
+          </span>
+          <button id="theme" class="btn btn-quiet" type="button" aria-pressed="false" title="当前：宣纸；点击切换">宣纸</button>
+          <a id="open-login" class="btn btn-quiet" href="login">登录 / 注册</a>
+          <button id="open-settings" class="btn btn-quiet" type="button" aria-controls="settings-drawer" aria-expanded="false">设置</button>
+        </div>
+        <button id="open-compose" class="btn btn-primary" type="button" aria-controls="compose-drawer" aria-expanded="false">呈交新案</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="shell">
+    <main id="main">
+      <section class="masthead" aria-labelledby="page-title">
+        <div class="masthead-copy">
+          <p class="kicker">中书省 · 门下省 · 尚书省</p>
+          <h1 id="page-title">凡有所请<span class="stop">，</span><br><span>先议而后行</span><span class="stop">。</span></h1>
+          <p class="lede">太子分拣，中书拟稿，门下驳议，尚书施行，工部成物。每一步皆留墨迹，每一笔皆可复核。</p>
+          <ul class="masthead-meta" aria-label="特性">
+            <li>本地优先</li>
+            <li>Ed25519 审批</li>
+            <li>全程留痕</li>
+          </ul>
+        </div>
+        <div class="flow">
+          <p class="flow-title">流程 <span>Pipeline</span></p>
+          <ol class="flow-rail" aria-label="流程">
+            <li><span class="flow-index">01</span><span class="flow-mark">太</span><span>太子判</span></li>
+            <li><span class="flow-index">02</span><span class="flow-mark">中</span><span>中书拟</span></li>
+            <li><span class="flow-index">03</span><span class="flow-mark">门</span><span>门下驳</span></li>
+            <li><span class="flow-index">04</span><span class="flow-mark">尚</span><span>尚书行</span></li>
+            <li><span class="flow-index">05</span><span class="flow-mark">工</span><span>工部成</span></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="overview" id="overview" aria-labelledby="overview-title">
+        <div class="section-head">
+          <div>
+            <p class="panel-kicker">运行总览 · Overview</p>
+            <h2 id="overview-title" class="section-title">今天的三省六部</h2>
+          </div>
+          <p class="section-note">数字来自账本，不来自模型自述。</p>
+        </div>
+        <div class="stats" aria-label="运行数据">
+          <article class="stat">
+            <p class="stat-label">案卷总数</p>
+            <p class="stat-value" id="kpi-total">—</p>
+            <p class="stat-foot" id="kpi-total-foot">尚未连接</p>
+          </article>
+          <article class="stat">
+            <p class="stat-label">在途</p>
+            <p class="stat-value" id="kpi-open">—</p>
+            <p class="stat-foot" id="kpi-open-foot">等待连接后统计</p>
+          </article>
+          <article class="stat">
+            <p class="stat-label">已办结</p>
+            <p class="stat-value" id="kpi-done">—</p>
+            <p class="stat-foot" id="kpi-done-foot">完成与撤销分列</p>
+          </article>
+          <article class="stat stat-accent">
+            <p class="stat-label">工部成功率</p>
+            <p class="stat-value" id="kpi-success">—</p>
+            <p class="stat-foot" id="kpi-success-foot">近 7 日</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="issues-panel" id="issues" aria-labelledby="issues-title">
+        <div class="section-head">
+          <div>
+            <p class="panel-kicker">牌票 · Work Queue</p>
+            <h2 id="issues-title" class="section-title">Issue 看板</h2>
+          </div>
+          <p id="issues-status" class="section-note" role="status">连接后读取 Issue 队列。</p>
+        </div>
+        <div id="issue-inbox" class="issue-inbox" hidden>
+          <h3>待我处理 <span id="issue-inbox-count">0</span></h3>
+          <ul id="issue-inbox-list" class="issue-list"></ul>
+        </div>
+        <div class="issue-board">
+          <section class="issue-column">
+            <h3>待领 <span id="issue-count-queued">0</span></h3>
+            <ul id="issue-list-queued" class="issue-list"></ul>
+          </section>
+          <section class="issue-column">
+            <h3>执行中 <span id="issue-count-running">0</span></h3>
+            <ul id="issue-list-running" class="issue-list"></ul>
+          </section>
+          <section class="issue-column">
+            <h3>待审 <span id="issue-count-review">0</span></h3>
+            <ul id="issue-list-review" class="issue-list"></ul>
+          </section>
+          <section class="issue-column">
+            <h3>已办 <span id="issue-count-done">0</span></h3>
+            <ul id="issue-list-done" class="issue-list"></ul>
+          </section>
+        </div>
+      </section>
+
+      <div class="grid">
+        <section class="panel dossier" id="cases" aria-labelledby="tasks-title">
+          <header class="panel-head">
+            <div>
+              <p class="panel-kicker">卷宗</p>
+              <h2 id="tasks-title">案卷一览</h2>
+              <p class="panel-sub">按状态筛选；选中即看完整决策链。</p>
+            </div>
+            <div class="seg" role="group" aria-label="按状态筛选">
+              <button class="seg-btn is-on" data-filter="all" type="button">全部</button>
+              <button class="seg-btn" data-filter="open" type="button">在途</button>
+              <button class="seg-btn" data-filter="done" type="button">办结</button>
+            </div>
+          </header>
+          <p id="list-status" class="status-line" role="status">尚未连接。打开「设置」填入验符后连接。</p>
+          <ul id="tasks" class="dossier-list" aria-busy="false"></ul>
+          <div id="tasks-empty" class="empty" hidden>
+            <p class="empty-title">尚无案卷</p>
+            <p>连接后按「呈交新案」写下第一条请求；也可以先在「设置」里确认角色绑定。</p>
+          </div>
+        </section>
+
+        <section class="panel detail" id="detail" aria-labelledby="detail-panel-title">
+          <header class="panel-head">
+            <div>
+              <p class="panel-kicker">奏疏</p>
+              <h2 id="detail-panel-title">决策奏疏</h2>
+              <p class="panel-sub">从分拣到成物的每一步，以及工部留下的文件。</p>
+            </div>
+            <span id="detail-badge" class="chip chip-muted" hidden></span>
+          </header>
+
+          <div id="detail-empty" class="empty">
+            <p class="empty-title">择一案卷，以观其决。</p>
+            <p>左侧选中任意案卷，即可查看太子、中书、门下、尚书、工部的完整决策链，以及工部留下的成物。</p>
+          </div>
+
+          <div id="detail-body" hidden>
+            <p id="detail-status" class="detail-title" role="status" aria-live="polite">择一案卷，以观其决。</p>
+            <p id="run-summary" class="run-meta"></p>
+            <div id="board-guide" class="guide" hidden></div>
+            <ol id="timeline" class="chain"></ol>
+            <div class="artifacts-head">
+              <h3>成物 · 文卷</h3>
+              <button id="export" type="button" class="btn btn-quiet btn-small" disabled>导出清单</button>
+            </div>
+            <p id="artifact-status" class="status-line">尚无成物。</p>
+            <ul id="artifacts" class="documents"></ul>
+            <pre id="artifact-preview" class="paper" hidden></pre>
+          </div>
+        </section>
+
+        <section class="panel merit" id="merit" aria-labelledby="merit-title">
+          <header class="panel-head">
+            <div>
+              <p class="panel-kicker">功过</p>
+              <h2 id="merit-title">功过簿</h2>
+              <p class="panel-sub">五个衙署的功过，样本不足不评比。</p>
+            </div>
+            <span id="merit-status" class="status-line">连接后读取</span>
+          </header>
+          <div id="merit-rows" class="merit-list" aria-live="polite"></div>
+          <p class="fineprint">只读统计，来自既有案卷、决策与运行记录；样本少于 3 不参与评比。</p>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <section class="closing" aria-labelledby="closing-title">
+    <div class="closing-inner">
+      <div class="closing-grid">
+        <div class="closing-copy">
+          <p class="panel-kicker on-dark">衡鉴 · 点将台 · 三省六部可信执行台</p>
+          <h2 id="closing-title">凡决留痕，<br>凡行受制。</h2>
+          <p>本地优先、可审计、可复核。把请求呈上来，剩下的交给制度。</p>
+          <div class="closing-actions">
+            <button class="btn btn-primary js-compose" type="button">呈交新案 →</button>
+            <button class="btn btn-outline on-dark js-settings" type="button">连接设置</button>
+          </div>
+        </div>
+        <div class="footer-cols">
+          <div>
+            <h3>产品</h3>
+            <a href="#overview">运行总览</a>
+            <a href="#cases">案卷</a>
+            <a href="#detail">决策奏疏</a>
+            <a href="#merit">功过簿</a>
+          </div>
+          <div>
+            <h3>运行</h3>
+            <button class="link-btn js-compose" type="button">呈交新案</button>
+            <button class="link-btn js-settings" type="button">连接与设置</button>
+            <span>主题：宣纸 / 乌金 / 青瓷</span>
+          </div>
+          <div>
+            <h3>关于</h3>
+            <span>衡鉴 · 点将台 v1.0.0</span>
+            <span>基于 Edict（MIT）</span>
+            <span>本地可信执行台</span>
+          </div>
+        </div>
+      </div>
+      <div class="closing-bottom">
+        <span>据实而录，不知则不书。</span>
+        <span>Imperial Flow · Council</span>
+      </div>
+    </div>
+  </section>
+
+  <div id="scrim" class="scrim" hidden></div>
+
+  <aside id="compose-drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="compose-title" hidden>
+    <header class="drawer-head">
+      <div>
+        <p class="panel-kicker">呈</p>
+        <h2 id="compose-title">呈交新案</h2>
+      </div>
+      <button class="btn btn-quiet drawer-close" type="button" data-close="compose-drawer">关闭</button>
+    </header>
+    <form id="request-form" autocomplete="off">
+      <label class="field">
+        <span>事由</span>
+        <textarea id="request" rows="7" maxlength="12000" required placeholder="述其所需、所限、所欲成之物……"></textarea>
+      </label>
+      <div class="drawer-actions">
+        <button id="submit" class="btn btn-primary" type="submit">呈交</button>
+        <p id="submit-status" class="status-line" role="status" aria-live="polite">提交仅入卷待办，不在本页调用模型。</p>
+      </div>
+    </form>
+    <p class="fineprint">提交后由独立执行器处理。若尚未连接，请先在「设置」中填入验符。</p>
+  </aside>
+
+  <aside id="settings-drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+    <header class="drawer-head">
+      <div>
+        <p class="panel-kicker">连接</p>
+        <h2 id="settings-title">设置</h2>
+      </div>
+      <button class="btn btn-quiet drawer-close" type="button" data-close="settings-drawer">关闭</button>
+    </header>
+
+    <section class="drawer-section">
+      <h3>衙署与验符</h3>
+      <div class="field-row">
+        <label class="field">
+          <span>衙署</span>
+          <select id="company" aria-describedby="company-help"></select>
+        </label>
+        <label class="field">
+          <span>验符</span>
+          <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="仅存于本页，不落盘">
+        </label>
+      </div>
+      <div class="field-row">
+        <label class="field">
+          <span>姓名</span>
+          <input id="username" autocomplete="username" spellcheck="false">
+        </label>
+        <label class="field">
+          <span>口信</span>
+          <input id="password" type="password" autocomplete="current-password">
+        </label>
+      </div>
+      <div class="btn-row">
+        <button id="login" class="btn" type="button">登录</button>
+        <button id="refresh" class="btn btn-primary" type="button">连接 · 刷新</button>
+        <button id="logout" class="btn btn-quiet" type="button" disabled>退出</button>
+      </div>
+      <p id="login-status" class="status-line" role="status" aria-live="polite">登录后自动填入验符；亦可径直粘贴符节。</p>
+      <p id="company-help" class="fineprint">衙署绑定同源服务路径；验符不留存，也不在浏览器内改换账本权限。</p>
+    </section>
+
+    <section class="drawer-section">
+      <h3>显示</h3>
+      <label class="toggle"><input id="show-worker" type="checkbox"><span>并见工部差役与废案</span></label>
+      <label class="toggle"><input id="auto-refresh" type="checkbox" checked><span>案在途中时自新</span></label>
+    </section>
+
+    <section class="drawer-section">
+      <h3>本机 Agent</h3>
+      <p class="fineprint">只读清单：本机发现、版本、就绪状态与绑定角色；不展示任何 Key。</p>
+      <p id="agent-registry-status" class="status-line" role="status" aria-live="polite">连接后读取本机 Agent。</p>
+      <div class="table-wrap">
+        <table class="bindings-table">
+          <thead><tr><th>Agent</th><th>版本</th><th>状态</th><th>绑定</th><th>运行</th></tr></thead>
+          <tbody id="agent-registry-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="drawer-section">
+      <h3>Issue 预算策略</h3>
+      <p class="fineprint">实例级上限；保存需要 admin 会话。空值或 0 表示不额外限制（仍受默认值约束）。</p>
+      <div class="field-row">
+        <label class="field"><span>单 Issue max_tokens</span><input id="policy-max-tokens" type="number" min="1000" max="10000000" step="1000"></label>
+        <label class="field"><span>单 Issue max_calls</span><input id="policy-max-calls" type="number" min="1" max="8" step="1"></label>
+        <label class="field"><span>公司月度 tokens（0=不限）</span><input id="policy-monthly-tokens" type="number" min="0" max="10000000" step="1000"></label>
+        <label class="field"><span>单 Issue max_cost_usd（0=不限）</span><input id="policy-max-cost" type="number" min="0" max="1000000" step="0.0001"></label>
+        <label class="field"><span>公司月度成本 USD（0=不限）</span><input id="policy-monthly-cost" type="number" min="0" max="1000000" step="0.0001"></label>
+      </div>
+      <div class="table-wrap">
+        <table class="bindings-table">
+          <thead><tr><th>角色</th><th>max_tokens</th><th>max_calls</th><th>月度 tokens</th><th>max_cost_usd</th><th>月度成本</th></tr></thead>
+          <tbody id="policy-role-rows"></tbody>
+        </table>
+      </div>
+      <button id="policy-save" class="btn" type="button">保存预算策略</button>
+      <p id="policy-status" class="status-line" role="status" aria-live="polite">读取中…</p>
+    </section>
+
+    <section class="drawer-section">
+      <h3>模型价格</h3>
+      <p class="fineprint">按每百万 token 的美元输入/输出价；未配置的模型显示 unpriced。保存需要 admin 会话。</p>
+      <label class="field"><span>pricing.models JSON</span><textarea id="pricing-json" rows="7" spellcheck="false" placeholder='{"gpt-6.1-sol": {"input_per_million_usd": 1, "output_per_million_usd": 2}}'></textarea></label>
+      <button id="pricing-save" class="btn" type="button">保存模型价格</button>
+      <p id="pricing-status" class="status-line" role="status" aria-live="polite">读取中…</p>
+    </section>
+
+    <section class="drawer-section">
+      <h3>成员管理</h3>
+      <p class="fineprint">仅 admin；新成员默认 operator，创建后可在自己的浏览器登录。</p>
+      <p id="members-status" class="status-line" role="status" aria-live="polite">需要 admin 会话。</p>
+      <ul id="members-list" class="issue-artifacts"></ul>
+      <div class="field-row">
+        <label class="field"><span>用户名</span><input id="member-name" maxlength="64" autocomplete="off"></label>
+        <label class="field"><span>密码</span><input id="member-password" type="password" minlength="8" autocomplete="new-password"></label>
+      </div>
+      <label class="field"><span>角色</span><select id="member-role"><option value="operator">operator</option><option value="viewer">viewer</option><option value="admin">admin</option></select></label>
+      <button id="member-add" class="btn" type="button">新增成员</button>
+    </section>
+
+    <section class="drawer-section">
+      <h3>Agent 告警</h3>
+      <p id="alerts-status" class="status-line" role="status" aria-live="polite">读取中…</p>
+      <ul id="alerts-list" class="issue-artifacts"></ul>
+    </section>
+
+    <section class="drawer-section">
+      <h3>角色绑定</h3>
+      <p class="fineprint"><a href="/onboarding.html" target="_blank" rel="noreferrer">打开智能体接入与一键安装</a>（需要管理员会话）</p>
+      <p id="bindings-status" class="status-line" role="status" aria-live="polite">请使用 admin 会话连接以查看预设。</p>
+      <div id="binding-recommendations" class="recommendation-list"></div>
+      <div class="table-wrap">
+        <table class="bindings-table">
+          <thead><tr><th>角色</th><th>Agent</th><th>模型</th><th>状态</th></tr></thead>
+          <tbody id="bindings-rows"></tbody>
+        </table>
+      </div>
+      <button id="apply-preset" class="btn" type="button" disabled>应用预设</button>
+      <button id="save-bindings" class="btn" type="button" disabled>保存自定义绑定</button>
+      <pre id="bindings-current" hidden></pre>
+      <pre id="install-progress" role="status" aria-live="polite" hidden></pre>
+    </section>
+
+    <section class="drawer-section">
+      <h3>Agent 环境</h3>
+      <p class="fineprint">为单个 Agent 覆盖 LLM_API_KEY / LLM_BASE_URL / LLM_MODEL；保存到本机 0600 文件，优先级高于全局通道。</p>
+      <label class="field"><span>Agent</span><select id="env-agent"></select></label>
+      <label class="field"><span>API Key</span><input id="env-key" type="password" autocomplete="new-password" placeholder="留空则保持现有 Key"></label>
+      <label class="field"><span>Base URL</span><input id="env-base" placeholder="可选，例如 relay.example.com/v1"></label>
+      <label class="field"><span>Model</span><input id="env-model" placeholder="可选，例如 gpt-5.6-sol"></label>
+      <button id="env-save" class="btn" type="button">保存 Agent 环境</button>
+      <p id="env-status" class="status-line" role="status"></p>
+    </section>
+
+    <section class="drawer-section">
+      <h3>模型访问</h3>
+      <p class="fineprint">自定义 OpenAI / Anthropic 兼容端点；Key 只保存在本机 0600 文件，不回显。</p>
+      <ul id="model-list" class="model-list"></ul>
+      <button id="add-model" class="btn" type="button">添加模型访问</button>
+      <div id="model-modal" class="model-modal" hidden>
+        <div class="model-dialog" role="dialog" aria-modal="true" aria-labelledby="model-title">
+          <h3 id="model-title">添加模型访问</h3>
+          <label>提供商<select id="model-provider"></select></label>
+          <label>名称<input id="model-name" maxlength="60" placeholder="例如：公司中转站"></label>
+          <label>协议<select id="model-protocol"><option value="openai">OpenAI 兼容</option><option value="anthropic">Anthropic 兼容</option></select></label>
+          <label>接口地址<input id="model-base" placeholder="relay.example.com/v1"></label>
+          <label>模型<input id="model-name-id" list="model-options" placeholder="验证后可选择，也可手填"><datalist id="model-options"></datalist></label>
+          <label>API Key <a id="model-key-link" class="fineprint" target="_blank" rel="noreferrer" hidden>获取 Key</a><input id="model-key" type="password" autocomplete="new-password" placeholder="只保存在本机"></label>
+          <div class="model-actions">
+            <button id="model-test" class="btn" type="button">验证 Key</button>
+            <button id="model-save" class="btn" type="button">保存</button>
+            <button id="model-cancel" class="btn" type="button">取消</button>
+          </div>
+          <p id="model-status" class="status-line" role="status"></p>
+        </div>
+      </div>
+    </section>
+  </aside>
+
+  <aside id="agent-drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="agent-drawer-title" hidden>
+    <header class="drawer-head">
+      <div>
+        <p class="panel-kicker">点将 · Agent</p>
+        <h2 id="agent-drawer-title">Agent 详情</h2>
+      </div>
+      <button class="btn btn-quiet drawer-close" type="button" data-close="agent-drawer">关闭</button>
+    </header>
+    <div class="drawer-section">
+      <p id="agent-detail-meta" class="fineprint"></p>
+      <p id="agent-detail-workspace" class="run-meta"></p>
+      <h3>生命周期（opt-in）</h3>
+      <p id="agent-lifecycle-status" class="fineprint">需要 admin 会话。</p>
+      <label class="field"><span>lifecycle.json</span><textarea id="agent-lifecycle-config" rows="4" spellcheck="false" placeholder='{"start":["/abs/path/agent","serve"],"stop":["/abs/path/agent","stop"]}'></textarea></label>
+      <div class="drawer-actions">
+        <button id="agent-lifecycle-save" class="btn" type="button">保存配置</button>
+        <button id="agent-lifecycle-start" class="btn" type="button">启动</button>
+        <button id="agent-lifecycle-stop" class="btn btn-quiet" type="button">停止</button>
+        <button id="agent-lifecycle-restart" class="btn btn-quiet" type="button">重启</button>
+      </div>
+      <h3>最近运行</h3>
+      <ul id="agent-detail-runs" class="issue-artifacts"></ul>
+      <p id="agent-detail-status" class="status-line" role="status" aria-live="polite"></p>
+    </div>
+  </aside>
+
+  <aside id="issue-drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="issue-drawer-title" hidden>
+    <header class="drawer-head">
+      <div>
+        <p class="panel-kicker">牌票 · Issue</p>
+        <h2 id="issue-drawer-title">Issue 详情</h2>
+      </div>
+      <button class="btn btn-quiet drawer-close" type="button" data-close="issue-drawer">关闭</button>
+    </header>
+    <div class="drawer-section">
+      <p id="issue-detail-meta" class="fineprint"></p>
+      <p id="issue-detail-state" class="detail-title"></p>
+      <p id="issue-detail-summary" class="run-meta"></p>
+      <h3>验收</h3>
+      <ul id="issue-detail-checks" class="issue-checks"></ul>
+      <h3>子 Issue</h3>
+      <ul id="issue-detail-children" class="issue-children"></ul>
+      <h3>成物</h3>
+      <ul id="issue-detail-artifacts" class="issue-artifacts"></ul>
+      <h3>评论</h3>
+      <ul id="issue-detail-comments" class="issue-comments"></ul>
+      <label class="field"><span>追加评论</span><textarea id="issue-comment-body" rows="3" maxlength="12000"></textarea></label>
+      <div class="drawer-actions">
+        <button id="issue-comment-save" class="btn" type="button">评论</button>
+        <button id="issue-review-approve" class="btn" type="button" hidden>评审通过</button>
+        <button id="issue-review-reject" class="btn btn-quiet" type="button" hidden>驳回</button>
+        <button id="issue-approve" class="btn btn-primary" type="button" hidden>签批通过</button>
+      </div>
+      <p id="issue-action-status" class="status-line" role="status" aria-live="polite"></p>
+    </div>
+  </aside>
+
+  <noscript>请启用 JavaScript，方可呈案与观其决策。</noscript>
+</body>
+</html>

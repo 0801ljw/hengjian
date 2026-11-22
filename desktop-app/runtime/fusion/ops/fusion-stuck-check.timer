@@ -1,0 +1,14 @@
+[Unit]
+Description=Fusion daily stuck-task audit at 09:00 local time
+
+[Timer]
+OnCalendar=*-*-* 09:00:00
+# The host powers off overnight; Persistent runs a missed 09:00 occurrence at
+# the next boot instead of silently skipping the day.
+Persistent=true
+RandomizedDelaySec=0
+AccuracySec=1min
+Unit=fusion-stuck-check.service
+
+[Install]
+WantedBy=timers.target

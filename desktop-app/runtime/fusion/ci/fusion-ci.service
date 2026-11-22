@@ -1,0 +1,8 @@
+[Unit]
+Description=Fusion offline regression and acceptance
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ljw/boss-lab/edict
+ExecStart=/bin/bash /home/ljw/boss-lab/edict/fusion/ci.sh
+TimeoutStartSec=30min

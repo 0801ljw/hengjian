@@ -1,0 +1,14 @@
+[Unit]
+Description=Fusion daily regression at 04:00 local time
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+# The host powers off overnight from 2026-11-14; without catch-up the 04:00 run
+# would simply never happen. Persistent runs a missed occurrence at next boot.
+Persistent=true
+RandomizedDelaySec=0
+AccuracySec=1s
+Unit=fusion-ci.service
+
+[Install]
+WantedBy=timers.target

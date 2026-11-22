@@ -1,0 +1,9 @@
+data: {"id":"resp_0ad556d74214edfe016aed7a1fa4c487d2baf86f5128783bc7","object":"chat.completion.chunk","created":1793948191,"model":"gpt-6.1-sol","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}],"service_tier":"auto"}
+
+data: {"id":"resp_0ad556d74214edfe016aed7a1fa4c487d2baf86f5128783bc7","object":"chat.completion.chunk","created":1793948191,"model":"gpt-6.1-sol","choices":[{"index":0,"delta":{"content":"{\"kind\":\"task\",\"reason\":\"用户要求生成指定的本地文档，并明确了内容、约束和子任务数量，属于具体工作请求。\",\"requirement\":\"在本地生成 handoff.md，用中文分别说明太子、中书省、门下省、尚书省四个 AI 决策角色，并说明工部的执行职责；明确预算、lease 和董事会审批不可绕过。只设置一个工部子任务，不联网、不执行命令。\",\"title\":\"生成 AI 决策角色与工部执行职责交接文档\"}"},"finish_reason":null}],"service_tier":"auto"}
+
+data: {"id":"resp_0ad556d74214edfe016aed7a1fa4c487d2baf86f5128783bc7","object":"chat.completion.chunk","created":1793948191,"model":"gpt-6.1-sol","choices":[{"index":0,"delta":{"content":""},"finish_reason":"stop"}],"service_tier":"default"}
+
+data: {"choices":[],"created":1793948191,"id":"resp_0ad556d74214edfe016aed7a1fa4c487d2baf86f5128783bc7","model":"gpt-6.1-sol","object":"chat.completion.chunk","service_tier":"default","usage":{"completion_tokens":129,"prompt_tokens":263,"prompt_tokens_details":{"cache_write_tokens":0,"cached_tokens":0},"total_tokens":392}}
+
+data: [DONE]

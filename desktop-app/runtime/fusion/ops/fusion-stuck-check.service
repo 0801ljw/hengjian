@@ -1,0 +1,9 @@
+[Unit]
+Description=Fusion non-terminal task audit (read-only; never recovers automatically)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ljw/boss-lab/edict
+ExecStart=/bin/bash /home/ljw/boss-lab/edict/fusion/stuck-check.sh
+Nice=10
+TimeoutStartSec=5min
