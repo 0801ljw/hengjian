@@ -21,6 +21,12 @@ open /Applications/Hengjian.app
 
 也可以右键 App →「打开」。
 
+## 公网演示
+
+- Web：https://hengjian.playxapi.com
+- 注册：https://hengjian.playxapi.com/login
+- 独立公开实例，不含私有案卷；不启动 worker
+
 ## 它是什么
 
 - 本机 Agent 清单/工作区/运行历史
