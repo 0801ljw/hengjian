@@ -511,6 +511,17 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(403, {"error": "human session required"})
             from .launcher_client import status
             return self._send(200, status(self.server.store.home))
+        if path == "/api/launcher/cloud-tasks/execute" and method == "POST":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            try:
+                data = json.loads(body or b"{}")
+                from .launcher_client import worker_once
+                result = worker_once(self.server.store.home, data.get("issue_id"))
+                return self._send(200, {"result": result})
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+
         if path == "/api/launcher/cloud-tasks" and method == "GET":
             if not session:
                 return self._send(403, {"error": "human session required"})

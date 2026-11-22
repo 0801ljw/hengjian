@@ -128,3 +128,9 @@ PY
 - 云空间设置 →「派发云任务」：标题、执行角色、Launcher、说明
 - 创建后 state=queued，Launcher 拉取/领取
 - 本机「云任务」面板只读；自动执行需 `DUTANG_LAUNCHER_EXECUTE=1`
+
+## 执行云任务
+
+- 本机「云任务」→「执行」/「执行下一条」
+- 执行前检查本机 Agent 绑定；未配置不领取
+- 自动执行仍可 `DUTANG_LAUNCHER_EXECUTE=1`

@@ -700,6 +700,21 @@ function boot() {
     } catch (error) { status("launchers-status", error.message, true); }
   }
 
+  async function executeCloudTask(issueId) {
+    try {
+      status("cloud-tasks-status", "执行中…");
+      const data = await api("/api/launcher/cloud-tasks/execute", {
+        method: "POST", body: JSON.stringify({ issue_id: issueId || "" }),
+      });
+      const result = data.result || {};
+      status("cloud-tasks-status", result.status === "done"
+        ? `完成 ${result.issue || ""}` : `未完成 ${result.status || "unknown"}`);
+      await refreshCloudTasks();
+    } catch (error) {
+      status("cloud-tasks-status", error.message, true);
+    }
+  }
+
   async function refreshCloudTasks() {
     const list = $("cloud-tasks-list");
     list.replaceChildren();
@@ -709,6 +724,10 @@ function boot() {
         const item = text("li", "");
         item.append(text("strong", task.title || task.id), text("div", `${task.id} · ${task.assignee || ""}`));
         if (task.body) item.append(text("div", String(task.body).slice(0, 300)));
+        const execute = text("button", "执行");
+        execute.type = "button"; execute.className = "btn btn-quiet btn-small";
+        execute.addEventListener("click", () => executeCloudTask(task.id));
+        item.append(execute);
         list.append(item);
       }
       status("cloud-tasks-status", (data.tasks || []).length ? `${data.tasks.length} 个待领取任务` : "没有待领取任务。");
@@ -1118,6 +1137,7 @@ function boot() {
   $("launcher-disconnect").addEventListener("click", disconnectLauncher);
   $("launcher-code-generate").addEventListener("click", generateLauncherCode);
   $("cloud-tasks-refresh").addEventListener("click", refreshCloudTasks);
+  $("cloud-tasks-execute").addEventListener("click", () => executeCloudTask(""));
   $("dispatch-create").addEventListener("click", createCloudTask);
   $("agent-lifecycle-save").addEventListener("click", saveAgentLifecycle);
   $("agent-lifecycle-start").addEventListener("click", () => lifecycleAction("start"));

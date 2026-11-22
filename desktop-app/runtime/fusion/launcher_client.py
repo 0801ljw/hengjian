@@ -131,12 +131,21 @@ def heartbeat_task(instance, issue_id, claim_token):
                     {"claim_token": claim_token}, token=data["token"])[1]
 
 
-def worker_once(instance):
+def worker_once(instance, issue_id=None):
     """Claim one cloud task and execute it locally; caller opts into running it."""
     from .issue_executor import execute_issue
     pending = tasks(instance)
     if not pending:
         return None
+    if issue_id is not None:
+        pending = [item for item in pending if item.get("id") == issue_id]
+        if not pending:
+            raise PolicyError("cloud task not available")
+    from .issue_executor import resolve_binding
+    try:
+        resolve_binding(pending[0], instance)
+    except Exception as exc:
+        raise PolicyError(f"本机 Agent 未配置，未领取任务：{exc}") from None
     issue_id = pending[0]["id"]
     claimed = claim(instance, issue_id)
     issue = claimed["issue"]
