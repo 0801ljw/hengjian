@@ -214,6 +214,15 @@ def worker_once(instance, issue_id=None):
                     upload_file(instance, issue_id, claimed["claim_token"], rel, target.read_bytes())
                 except Exception:
                     continue
+            for log_name in ("decisions.jsonl", "calls.jsonl"):
+                source = (Path(run_dir) / "round" / log_name).resolve()
+                if not source.is_file() or source.stat().st_size > 10 * 1024 * 1024:
+                    continue
+                try:
+                    upload_file(instance, issue_id, claimed["claim_token"],
+                                f"logs/{log_name}", source.read_bytes())
+                except Exception:
+                    continue
         complete(instance, issue_id, claimed["claim_token"], result.get("summary", ""),
                  result.get("artifacts") or [], result.get("checks") or [], result.get("usage"))
     else:
