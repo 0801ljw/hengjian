@@ -129,11 +129,13 @@ def claim(instance, issue_id):
     return payload
 
 
-def complete(instance, issue_id, claim_token, summary, artifacts=(), checks=(), usage=None):
+def complete(instance, issue_id, claim_token, summary, artifacts=(), checks=(), usage=None,
+             artifact_files=()):
     data = _auth(instance)
     return _request("POST", data["cloud_url"] + f"/api/launcher/tasks/{issue_id}/complete",
                     {"claim_token": claim_token, "summary": summary, "artifacts": list(artifacts),
-                     "checks": list(checks), "usage": usage}, token=data["token"])[1]
+                     "checks": list(checks), "usage": usage,
+                     "artifact_files": list(artifact_files)}, token=data["token"])[1]
 
 
 def fail(instance, issue_id, claim_token, error, retry=True):
@@ -187,8 +189,28 @@ def worker_once(instance, issue_id=None):
     finally:
         stop.set()
     if result.get("status") == "done":
+        files = []
+        run_dir = result.get("run_dir")
+        if run_dir:
+            base = (Path(run_dir) / "artifacts").resolve()
+            for artifact in result.get("artifacts") or []:
+                if not isinstance(artifact, dict):
+                    continue
+                rel = str(artifact.get("path") or "")
+                target = (base / rel).resolve()
+                if base not in target.parents or not target.is_file():
+                    continue
+                if target.suffix.lower() not in (".md", ".txt", ".json", ".csv", ".yaml", ".yml"):
+                    continue
+                if target.stat().st_size > 65536:
+                    continue
+                try:
+                    files.append({"path": rel, "content": target.read_text(encoding="utf-8")})
+                except (OSError, UnicodeError):
+                    continue
         complete(instance, issue_id, claimed["claim_token"], result.get("summary", ""),
-                 result.get("artifacts") or [], result.get("checks") or [], result.get("usage"))
+                 result.get("artifacts") or [], result.get("checks") or [], result.get("usage"),
+                 files)
     else:
         fail(instance, issue_id, claimed["claim_token"], result.get("error") or result.get("status"),
              retry=True)

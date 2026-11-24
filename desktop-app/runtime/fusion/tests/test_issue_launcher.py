@@ -16,9 +16,12 @@ def test_issue_can_be_dispatched_to_launcher(tmp_path):
     assert claimed["state"] == "running"
     assert issues.launcher_heartbeat(issue["id"], paired["launcher_id"], token) is True
     done = issues.launcher_complete(issue["id"], paired["launcher_id"], token, "ok",
-                                    [{"path": "x.txt"}], [{"type": "file_exists", "path": "x.txt"}])
+                                    [{"path": "x.txt"}], [{"type": "file_exists", "path": "x.txt"}],
+                                    files=[{"path": "x.txt", "content": "hello"}])
     assert done["state"] == "done"
     assert done["result"]["executed_by"].startswith("launcher:")
+    assert issues.files(issue["id"])[0]["path"] == "x.txt"
+    assert issues.file(issue["id"], "x.txt")["content"] == "hello"
     actions = [item["action"] for item in issues.timeline(issue["id"])]
     assert "created" in actions and "launcher_claimed" in actions and "launcher_completed" in actions
 

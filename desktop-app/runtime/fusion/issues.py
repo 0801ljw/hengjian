@@ -57,6 +57,10 @@ class IssueStore:
                     seq INTEGER PRIMARY KEY, issue_id TEXT NOT NULL REFERENCES issues(id),
                     at TEXT NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL,
                     detail TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS issue_files(
+                    issue_id TEXT NOT NULL REFERENCES issues(id), path TEXT NOT NULL,
+                    sha256 TEXT NOT NULL, size INTEGER NOT NULL, content TEXT NOT NULL,
+                    created_at TEXT NOT NULL, PRIMARY KEY(issue_id,path));
                 CREATE TABLE IF NOT EXISTS issue_wakeups(
                     id INTEGER PRIMARY KEY, issue_id TEXT NOT NULL REFERENCES issues(id),
                     kind TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
@@ -552,7 +556,7 @@ class IssueStore:
                 raise PolicyError("launcher claim is not active")
         return True
 
-    def launcher_complete(self, issue_id, launcher_id, claim_token, summary, artifacts=(), checks=(), usage=None):
+    def launcher_complete(self, issue_id, launcher_id, claim_token, summary, artifacts=(), checks=(), usage=None, files=None):
         if not isinstance(artifacts, (list, tuple)) or len(artifacts) > 32:
             raise PolicyError("artifacts must be a list (max 32)")
         with self.store.transaction() as conn:
@@ -568,6 +572,20 @@ class IssueStore:
                                              "artifacts": list(artifacts), "checks": list(checks),
                                              "usage": usage, "executed_by": f"launcher:{launcher_id}"},
                                             ensure_ascii=False), now(), issue_id))
+            for item in files or []:
+                if not isinstance(item, dict):
+                    raise PolicyError("invalid artifact file")
+                path = str(item.get("path") or "")
+                content = item.get("content")
+                if (not path or path.startswith("/") or ".." in path.split("/")
+                        or len(path) > 200 or not isinstance(content, str)
+                        or len(content.encode("utf-8")) > 65536):
+                    raise PolicyError("invalid artifact file")
+                digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                conn.execute("""INSERT INTO issue_files(issue_id,path,sha256,size,content,created_at)
+                    VALUES(?,?,?,?,?,?) ON CONFLICT(issue_id,path) DO UPDATE SET
+                    sha256=excluded.sha256,size=excluded.size,content=excluded.content""",
+                             (issue_id, path, digest, len(content.encode("utf-8")), content, now()))
             self._event(conn, issue_id, f"launcher:{launcher_id}", "launcher_completed",
                         {"state": state})
             if state == "review":
@@ -769,6 +787,22 @@ class IssueStore:
             self._event(conn, issue_id, f"launcher:{launcher_id}", "launcher_released", {})
             self._wake(conn, issue_id, "recovered")
         return self.get(issue_id)
+
+    def files(self, issue_id):
+        with self.store.connect() as conn:
+            rows = conn.execute("""SELECT path,sha256,size,created_at FROM issue_files
+                WHERE issue_id=? ORDER BY path""", (issue_id,)).fetchall()
+        return [{"path": row[0], "sha256": row[1], "size": row[2], "created_at": row[3]}
+                for row in rows]
+
+    def file(self, issue_id, path):
+        with self.store.connect() as conn:
+            row = conn.execute("""SELECT sha256,size,content,created_at FROM issue_files
+                WHERE issue_id=? AND path=?""", (issue_id, str(path))).fetchone()
+        if row is None:
+            raise PolicyError("file not found")
+        return {"path": path, "sha256": row[0], "size": row[1],
+                "content": row[2], "created_at": row[3]}
 
     def cancel(self, issue_id, actor, reason=""):
         with self.store.transaction() as conn:

@@ -531,7 +531,8 @@ class Handler(BaseHTTPRequestHandler):
                 if parts[4] == "complete":
                     return self._send(200, self.server.issues.launcher_complete(
                         issue_id, launcher_id, data.get("claim_token", ""), data.get("summary", ""),
-                        data.get("artifacts") or [], data.get("checks") or [], data.get("usage")))
+                        data.get("artifacts") or [], data.get("checks") or [], data.get("usage"),
+                        data.get("artifact_files") or []))
                 return self._send(200, self.server.issues.launcher_fail(
                     issue_id, launcher_id, data.get("claim_token", ""), data.get("error", "launcher failed"),
                     retry=bool(data.get("retry", True))))
@@ -708,6 +709,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(404, {"error": "issue not found"})
                 if len(parts) == 3 and method == "GET":
                     return self._send(200, issue)
+                if len(parts) == 4 and parts[3] == "files" and method == "GET":
+                    return self._send(200, {"files": self.server.issues.files(issue_id)})
+                if len(parts) == 4 and parts[3] == "file" and method == "GET":
+                    query = parse_qs(urlsplit(self.path).query)
+                    return self._send(200, self.server.issues.file(
+                        issue_id, (query.get("path") or [""])[0]))
                 if len(parts) == 4 and parts[3] == "timeline" and method == "GET":
                     return self._send(200, {"timeline": self.server.issues.timeline(issue_id)})
                 if len(parts) != 4 or method != "POST":

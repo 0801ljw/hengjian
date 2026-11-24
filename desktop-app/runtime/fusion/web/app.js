@@ -479,6 +479,26 @@ function boot() {
       for (const item of issue.result?.artifacts || []) {
         $("issue-detail-artifacts").append(text("li", `${item.path} · ${item.bytes} B · ${item.sha256}`));
       }
+      $("issue-detail-files").replaceChildren();
+      $("issue-file-preview").hidden = true;
+      try {
+        const files = await api(`/api/issues/${encodeURIComponent(id)}/files`);
+        for (const file of files.files || []) {
+          const item = text("li", `${file.path} · ${file.size} B · ${file.sha256}`);
+          const view = text("button", "查看");
+          view.type = "button"; view.className = "btn btn-quiet btn-small";
+          view.addEventListener("click", async () => {
+            try {
+              const data = await api(`/api/issues/${encodeURIComponent(id)}/file?path=${encodeURIComponent(file.path)}`);
+              const preview = $("issue-file-preview");
+              preview.textContent = data.content || "";
+              preview.hidden = false;
+            } catch (error) { status("issue-action-status", error.message, true); }
+          });
+          item.append(text("span", " "), view);
+          $("issue-detail-files").append(item);
+        }
+      } catch {}
       $("issue-detail-comments").replaceChildren();
       for (const comment of issue.comments || []) {
         $("issue-detail-comments").append(text("li", `${comment.author} · ${comment.body}`));
