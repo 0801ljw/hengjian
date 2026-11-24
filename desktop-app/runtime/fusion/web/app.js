@@ -914,7 +914,8 @@ function boot() {
       const current = (data.workspaces || []).find(item => item.id === (me?.workspace || select.value));
       if (current) $("workspace-name").value = current.name;
       status("workspace-status", (data.workspaces || []).length
-        ? `${data.workspaces.length} 个 Workspace` : "没有 Workspace");
+        ? `${data.workspaces.length} 个 Workspace · 当前角色 ${me?.workspace_role || "unknown"}`
+        : "没有 Workspace");
     } catch {
       status("workspace-status", "需要登录后管理 Workspace。", true);
     }

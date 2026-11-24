@@ -632,7 +632,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == ME_PATH:
             if session:
-                return self._send(200, {"auth": "session", **session})
+                from .workspaces import membership
+                role = membership(self.server.store.home, workspace_id, session["name"])
+                return self._send(200, {"auth": "session", **session, "workspace_role": role})
             status, payload = self.server.api.handle(method, "/api/health", dict(self.headers), b"")
             if status == 200:
                 return self._send(200, {"auth": "token"})
