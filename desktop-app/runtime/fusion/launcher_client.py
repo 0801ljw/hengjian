@@ -11,6 +11,7 @@ import urllib.request
 from pathlib import Path
 
 from .core import PolicyError, now
+from .redact import redact_jsonl
 
 
 def _path(instance):
@@ -219,8 +220,9 @@ def worker_once(instance, issue_id=None):
                 if not source.is_file() or source.stat().st_size > 10 * 1024 * 1024:
                     continue
                 try:
+                    text = source.read_text(encoding="utf-8", errors="replace")
                     upload_file(instance, issue_id, claimed["claim_token"],
-                                f"logs/{log_name}", source.read_bytes())
+                                f"logs/{log_name}", redact_jsonl(text).encode("utf-8"))
                 except Exception:
                     continue
         complete(instance, issue_id, claimed["claim_token"], result.get("summary", ""),

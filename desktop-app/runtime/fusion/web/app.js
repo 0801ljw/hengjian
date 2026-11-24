@@ -465,6 +465,14 @@ function boot() {
         });
         $("issue-detail-children").append(item);
       }
+      $("issue-detail-events").replaceChildren();
+      try {
+        const events = await api(`/api/issues/${encodeURIComponent(id)}/events`);
+        for (const event of events.events || []) {
+          $("issue-detail-events").append(text("li",
+            `${event.step || "step"} · ${event.status || "?"} · ${event.model || ""}${event.error ? " · " + event.error : ""}`));
+        }
+      } catch {}
       $("issue-detail-timeline").replaceChildren();
       try {
         const timeline = await api(`/api/issues/${encodeURIComponent(id)}/timeline`);

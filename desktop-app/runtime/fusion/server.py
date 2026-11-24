@@ -751,6 +751,8 @@ class Handler(BaseHTTPRequestHandler):
                     query = parse_qs(urlsplit(self.path).query)
                     return self._send(200, self.server.issues.file(
                         issue_id, (query.get("path") or [""])[0]))
+                if len(parts) == 4 and parts[3] == "events" and method == "GET":
+                    return self._send(200, {"events": self.server.issues.execution_events(issue_id)})
                 if len(parts) == 4 and parts[3] == "timeline" and method == "GET":
                     return self._send(200, {"timeline": self.server.issues.timeline(issue_id)})
                 if len(parts) != 4 or method != "POST":

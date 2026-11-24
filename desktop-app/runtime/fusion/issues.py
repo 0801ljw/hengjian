@@ -827,6 +827,23 @@ class IssueStore:
                 target.unlink(missing_ok=True)
         return self.files(issue_id)
 
+    def execution_events(self, issue_id):
+        with self.store.connect() as conn:
+            row = conn.execute("""SELECT content FROM issue_files
+                WHERE issue_id=? AND path='logs/decisions.jsonl'""", (issue_id,)).fetchone()
+        if not row:
+            return []
+        events = []
+        for line in str(row[0] or "").splitlines():
+            try:
+                item = json.loads(line)
+            except (TypeError, ValueError):
+                continue
+            events.append({"step": item.get("step"), "status": item.get("status"),
+                           "model": item.get("returned_model") or item.get("model"),
+                           "at": item.get("at"), "error": item.get("error")})
+        return events
+
     def launcher_upload_file(self, issue_id, launcher_id, claim_token, path, data, sha256=None):
         import hashlib as _hashlib
         from pathlib import Path as _Path

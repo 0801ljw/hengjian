@@ -74,3 +74,21 @@ def test_delete_file_removes_storage(tmp_path):
     issues.delete_file(issue["id"], "image.png")
     assert issues.files(issue["id"]) == []
     assert not storage.exists()
+
+
+def test_execution_events_are_structured(tmp_path):
+    store = Store(tmp_path / "db")
+    issues = IssueStore(store)
+    code = create_pairing_code(store.home, "owner")
+    paired = claim(store.home, code["code"], "Mac", "macbook", "1")
+    issue = issues.create(title="events", assignee="gongbu", launcher_id=paired["launcher_id"])
+    _, token = issues.launcher_claim(issue["id"], paired["launcher_id"])
+    import json
+    lines = "\n".join([
+        json.dumps({"step": "issue_execute", "status": "valid", "model": "m", "at": "t"}),
+        json.dumps({"step": "issue_execute", "status": "error", "error": "boom"}),
+    ]) + "\n"
+    issues.launcher_upload_file(issue["id"], paired["launcher_id"], token, "logs/decisions.jsonl",
+                                lines.encode())
+    events = issues.execution_events(issue["id"])
+    assert [e["status"] for e in events] == ["valid", "error"]
