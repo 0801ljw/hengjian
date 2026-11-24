@@ -732,6 +732,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(200, issue)
                 if len(parts) == 4 and parts[3] == "files" and method == "GET":
                     return self._send(200, {"files": self.server.issues.files(issue_id)})
+                if len(parts) == 4 and parts[3] == "file" and method == "DELETE":
+                    query = parse_qs(urlsplit(self.path).query)
+                    return self._send(200, {"files": self.server.issues.delete_file(
+                        issue_id, (query.get("path") or [""])[0])})
                 if len(parts) == 4 and parts[3] == "download" and method == "GET":
                     query = parse_qs(urlsplit(self.path).query)
                     item = self.server.issues.file(issue_id, (query.get("path") or [""])[0])

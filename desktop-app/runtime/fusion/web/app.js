@@ -504,6 +504,19 @@ function boot() {
             });
             item.append(text("span", " "), view);
           }
+          if (me?.auth === "session") {
+            const remove = text("button", "删除");
+            remove.type = "button"; remove.className = "btn btn-quiet btn-small";
+            remove.addEventListener("click", async () => {
+              if (!confirm(`删除 ${file.path}？`)) return;
+              try {
+                await api(`/api/issues/${encodeURIComponent(id)}/file?path=${encodeURIComponent(file.path)}`,
+                          { method: "DELETE" });
+                await openIssueDetail(id);
+              } catch (error) { status("issue-action-status", error.message, true); }
+            });
+            item.append(text("span", " "), remove);
+          }
           $("issue-detail-files").append(item);
         }
       } catch {}

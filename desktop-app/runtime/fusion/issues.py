@@ -811,12 +811,33 @@ class IssueStore:
                 "created_at": row[3], "binary": bool(row[4]), "download": bool(row[4]),
                 "storage_path": row[4]}
 
+    def delete_file(self, issue_id, path):
+        from pathlib import Path as _Path
+        with self.store.transaction() as conn:
+            row = conn.execute("""SELECT storage FROM issue_files WHERE issue_id=? AND path=?""",
+                               (issue_id, str(path))).fetchone()
+            if row is None:
+                raise PolicyError("file not found")
+            conn.execute("DELETE FROM issue_files WHERE issue_id=? AND path=?", (issue_id, str(path)))
+            self._event(conn, issue_id, "human", "file_deleted", {"path": str(path)})
+        if row[0]:
+            target = (_Path(self.store.home) / row[0]).resolve()
+            root = (_Path(self.store.home) / "issue-files").resolve()
+            if root in target.parents:
+                target.unlink(missing_ok=True)
+        return self.files(issue_id)
+
     def launcher_upload_file(self, issue_id, launcher_id, claim_token, path, data, sha256=None):
         import hashlib as _hashlib
         from pathlib import Path as _Path
         if not isinstance(data, (bytes, bytearray)) or len(data) > 10 * 1024 * 1024:
             raise PolicyError("file must be <= 10MB")
         path = str(path or "")
+        with self.store.connect() as _conn:
+            total = _conn.execute("SELECT COALESCE(SUM(size),0) FROM issue_files WHERE issue_id=?",
+                                  (issue_id,)).fetchone()[0]
+        if int(total) + len(data) > 50 * 1024 * 1024:
+            raise PolicyError("issue file quota exceeded (50MB)")
         if not path or path.startswith("/") or ".." in path.split("/") or len(path) > 200:
             raise PolicyError("invalid file path")
         digest = _hashlib.sha256(bytes(data)).hexdigest()

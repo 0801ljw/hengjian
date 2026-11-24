@@ -57,3 +57,20 @@ def test_launcher_binary_upload(tmp_path):
     item = issues.file(issue["id"], "image.png")
     assert item["binary"] is True and item["size"] == len(blob) and item["storage_path"]
     assert (tmp_path / "db" / item["storage_path"]).is_file()
+
+
+def test_delete_file_removes_storage(tmp_path):
+    store = Store(tmp_path / "db")
+    issues = IssueStore(store)
+    code = create_pairing_code(store.home, "owner")
+    paired = claim(store.home, code["code"], "Mac", "macbook", "1")
+    issue = issues.create(title="delete", assignee="gongbu", launcher_id=paired["launcher_id"])
+    _, token = issues.launcher_claim(issue["id"], paired["launcher_id"])
+    issues.launcher_upload_file(issue["id"], paired["launcher_id"], token, "image.png",
+                                b"\x89PNG\r\n\x1a\n" + b"x" * 32)
+    item = issues.file(issue["id"], "image.png")
+    storage = tmp_path / "db" / item["storage_path"]
+    assert storage.is_file()
+    issues.delete_file(issue["id"], "image.png")
+    assert issues.files(issue["id"]) == []
+    assert not storage.exists()
