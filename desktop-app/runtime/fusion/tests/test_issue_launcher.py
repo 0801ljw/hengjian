@@ -34,6 +34,7 @@ def test_blocked_issue_retry_and_launcher_release(tmp_path):
     issue = issues.create(title="retry", assignee="gongbu", max_attempts=1,
                           launcher_id=paired["launcher_id"])
     claimed, token = issues.launcher_claim(issue["id"], paired["launcher_id"])
+    assert [item["id"] for item in issues.launcher_tasks(paired["launcher_id"], "running")] == [issue["id"]]
     issues.launcher_release(issue["id"], paired["launcher_id"], token)
     assert issues.get(issue["id"])["state"] == "queued"
     claimed, token = issues.launcher_claim(issue["id"], paired["launcher_id"])

@@ -531,10 +531,10 @@ class IssueStore:
             self._refresh_blockers(conn, issue_id)
         return self.get(issue_id)
 
-    def launcher_tasks(self, launcher_id):
+    def launcher_tasks(self, launcher_id, state="queued"):
         with self.store.connect() as conn:
-            rows = conn.execute("""SELECT id FROM issues WHERE launcher_id=? AND state='queued'
-                ORDER BY priority DESC, created_at LIMIT 50""", (launcher_id,)).fetchall()
+            rows = conn.execute("""SELECT id FROM issues WHERE launcher_id=? AND state=?
+                ORDER BY priority DESC, created_at LIMIT 50""", (launcher_id, state)).fetchall()
         return [self.get(row[0]) for row in rows]
 
     def launcher_claim(self, issue_id, launcher_id):

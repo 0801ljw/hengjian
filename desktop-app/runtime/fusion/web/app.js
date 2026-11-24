@@ -804,6 +804,15 @@ function boot() {
     } catch (error) { status("launchers-status", error.message, true); }
   }
 
+  async function releaseCloudTask(issueId, claimToken) {
+    try {
+      await api("/api/launcher/cloud-tasks/release", {
+        method: "POST", body: JSON.stringify({ issue_id: issueId, claim_token: claimToken }),
+      });
+      await refreshCloudTasks();
+    } catch (error) { status("cloud-tasks-status", error.message, true); }
+  }
+
   async function executeCloudTask(issueId) {
     try {
       status("cloud-tasks-status", "执行中…");
@@ -834,7 +843,19 @@ function boot() {
         item.append(execute);
         list.append(item);
       }
-      status("cloud-tasks-status", (data.tasks || []).length ? `${data.tasks.length} 个待领取任务` : "没有待领取任务。");
+      for (const task of data.running || []) {
+        const item = text("li", "");
+        item.append(text("strong", `运行中 · ${task.title || task.id}`),
+                    text("div", `${task.id} · ${task.assignee || ""}`));
+        const release = text("button", "释放");
+        release.type = "button"; release.className = "btn btn-quiet btn-small";
+        release.addEventListener("click", () => releaseCloudTask(task.id, task.claim_token));
+        item.append(release);
+        list.append(item);
+      }
+      const waiting = (data.tasks || []).length;
+      const running = (data.running || []).length;
+      status("cloud-tasks-status", `待领取 ${waiting} · 运行中 ${running}`);
     } catch (error) {
       status("cloud-tasks-status", error.message, true);
     }

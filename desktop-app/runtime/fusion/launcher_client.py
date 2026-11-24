@@ -124,6 +124,13 @@ def tasks(instance):
     return payload.get("tasks") or []
 
 
+def running_tasks(instance):
+    data = _auth(instance)
+    _, payload = _request("GET", data["cloud_url"] + "/api/launcher/tasks",
+                          token=data["token"])
+    return payload.get("running") or []
+
+
 def claim(instance, issue_id):
     data = _auth(instance)
     _, payload = _request("POST", data["cloud_url"] + f"/api/launcher/tasks/{issue_id}/claim",
@@ -153,6 +160,12 @@ def upload_file(instance, issue_id, claim_token, path, data):
                     {"claim_token": claim_token, "path": path,
                      "data_base64": base64.b64encode(data).decode("ascii")},
                     token=data_info["token"])[1]
+
+
+def release(instance, issue_id, claim_token):
+    data = _auth(instance)
+    return _request("POST", data["cloud_url"] + f"/api/launcher/tasks/{issue_id}/release",
+                    {"claim_token": claim_token}, token=data["token"])[1]
 
 
 def heartbeat_task(instance, issue_id, claim_token):

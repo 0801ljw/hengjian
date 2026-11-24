@@ -514,7 +514,10 @@ class Handler(BaseHTTPRequestHandler):
             launcher_id = authenticate(self.server.store.home, token)
             if not launcher_id:
                 return self._send(401, {"error": "invalid launcher token"})
-            return self._send(200, {"tasks": self.server.issues.launcher_tasks(launcher_id)})
+            return self._send(200, {
+                "tasks": self.server.issues.launcher_tasks(launcher_id, "queued"),
+                "running": self.server.issues.launcher_tasks(launcher_id, "running"),
+            })
         if path.startswith("/api/launcher/tasks/") and method == "POST":
             from .launchers import authenticate
             token = self.headers.get("Authorization", "")
@@ -565,6 +568,17 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(403, {"error": "human session required"})
             from .launcher_client import status
             return self._send(200, status(self.server.store.home))
+        if path == "/api/launcher/cloud-tasks/release" and method == "POST":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            try:
+                data = json.loads(body or b"{}")
+                from .launcher_client import release
+                return self._send(200, release(self.server.store.home, data.get("issue_id", ""),
+                                               data.get("claim_token", "")))
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+
         if path == "/api/launcher/cloud-tasks/execute" and method == "POST":
             if not session:
                 return self._send(403, {"error": "human session required"})
@@ -593,8 +607,9 @@ class Handler(BaseHTTPRequestHandler):
             if not session:
                 return self._send(403, {"error": "human session required"})
             try:
-                from .launcher_client import tasks
-                return self._send(200, {"tasks": tasks(self.server.store.home)})
+                from .launcher_client import running_tasks, tasks
+                return self._send(200, {"tasks": tasks(self.server.store.home),
+                                        "running": running_tasks(self.server.store.home)})
             except Exception as exc:
                 return self._send(400, {"error": str(exc)})
 
