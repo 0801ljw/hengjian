@@ -41,3 +41,19 @@ def test_blocked_issue_retry_and_launcher_release(tmp_path):
     assert issues.get(issue["id"])["state"] == "blocked"
     retried = issues.retry(issue["id"], "human")
     assert retried["state"] == "queued" and retried["attempts"] == 0
+
+
+def test_launcher_binary_upload(tmp_path):
+    store = Store(tmp_path / "db")
+    issues = IssueStore(store)
+    code = create_pairing_code(store.home, "owner")
+    paired = claim(store.home, code["code"], "Mac", "macbook", "1")
+    issue = issues.create(title="binary", assignee="gongbu", launcher_id=paired["launcher_id"])
+    _, token = issues.launcher_claim(issue["id"], paired["launcher_id"])
+    blob = b"\x89PNG\r\n\x1a\n" + b"x" * 32
+    issues.launcher_upload_file(issue["id"], paired["launcher_id"], token, "image.png", blob)
+    files = issues.files(issue["id"])
+    assert files[0]["path"] == "image.png" and files[0]["download"] is True
+    item = issues.file(issue["id"], "image.png")
+    assert item["binary"] is True and item["size"] == len(blob) and item["storage_path"]
+    assert (tmp_path / "db" / item["storage_path"]).is_file()

@@ -1,6 +1,7 @@
 """Launcher-side cloud workspace link (stored under the local instance)."""
 from __future__ import annotations
 
+import base64
 import json
 import os
 import threading
@@ -145,6 +146,14 @@ def fail(instance, issue_id, claim_token, error, retry=True):
                      "retry": bool(retry)}, token=data["token"])[1]
 
 
+def upload_file(instance, issue_id, claim_token, path, data):
+    data_info = _auth(instance)
+    return _request("POST", data_info["cloud_url"] + f"/api/launcher/tasks/{issue_id}/file",
+                    {"claim_token": claim_token, "path": path,
+                     "data_base64": base64.b64encode(data).decode("ascii")},
+                    token=data_info["token"])[1]
+
+
 def heartbeat_task(instance, issue_id, claim_token):
     data = _auth(instance)
     return _request("POST", data["cloud_url"] + f"/api/launcher/tasks/{issue_id}/heartbeat",
@@ -189,7 +198,6 @@ def worker_once(instance, issue_id=None):
     finally:
         stop.set()
     if result.get("status") == "done":
-        files = []
         run_dir = result.get("run_dir")
         if run_dir:
             base = (Path(run_dir) / "artifacts").resolve()
@@ -200,17 +208,14 @@ def worker_once(instance, issue_id=None):
                 target = (base / rel).resolve()
                 if base not in target.parents or not target.is_file():
                     continue
-                if target.suffix.lower() not in (".md", ".txt", ".json", ".csv", ".yaml", ".yml"):
-                    continue
-                if target.stat().st_size > 65536:
+                if target.stat().st_size > 10 * 1024 * 1024:
                     continue
                 try:
-                    files.append({"path": rel, "content": target.read_text(encoding="utf-8")})
-                except (OSError, UnicodeError):
+                    upload_file(instance, issue_id, claimed["claim_token"], rel, target.read_bytes())
+                except Exception:
                     continue
         complete(instance, issue_id, claimed["claim_token"], result.get("summary", ""),
-                 result.get("artifacts") or [], result.get("checks") or [], result.get("usage"),
-                 files)
+                 result.get("artifacts") or [], result.get("checks") or [], result.get("usage"))
     else:
         fail(instance, issue_id, claimed["claim_token"], result.get("error") or result.get("status"),
              retry=True)

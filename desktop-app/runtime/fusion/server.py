@@ -209,6 +209,15 @@ class Handler(BaseHTTPRequestHandler):
             return True
         return False
 
+    def _send_bytes(self, data: bytes, content_type: str, filename: str) -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.end_headers()
+        self.wfile.write(data)
+
     def _send_file(self, path: Path) -> None:
         data = path.read_bytes()
         ctype = {".html": "text/html; charset=utf-8",
@@ -514,7 +523,7 @@ class Handler(BaseHTTPRequestHandler):
             if not launcher_id:
                 return self._send(401, {"error": "invalid launcher token"})
             parts = path.strip("/").split("/")
-            if len(parts) != 5 or parts[4] not in ("claim", "complete", "fail", "heartbeat", "release"):
+            if len(parts) != 5 or parts[4] not in ("claim", "complete", "fail", "heartbeat", "release", "file"):
                 return self._send(405, {"error": "unknown launcher action"})
             issue_id = parts[3]
             try:
@@ -522,6 +531,18 @@ class Handler(BaseHTTPRequestHandler):
                 if parts[4] == "claim":
                     issue, claim_token = self.server.issues.launcher_claim(issue_id, launcher_id)
                     return self._send(200, {"issue": issue, "claim_token": claim_token})
+                if parts[4] == "file":
+                    import base64 as _base64
+                    from .issues import IssueStore
+                    raw = data.get("data_base64") or ""
+                    try:
+                        blob = _base64.b64decode(raw, validate=True)
+                    except Exception:
+                        return self._send(400, {"error": "invalid base64 file"})
+                    self.server.issues.launcher_upload_file(
+                        issue_id, launcher_id, data.get("claim_token", ""), data.get("path", ""),
+                        blob, data.get("sha256"))
+                    return self._send(200, {"ok": True})
                 if parts[4] == "heartbeat":
                     return self._send(200, {"ok": self.server.issues.launcher_heartbeat(
                         issue_id, launcher_id, data.get("claim_token", ""))})
@@ -711,6 +732,17 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(200, issue)
                 if len(parts) == 4 and parts[3] == "files" and method == "GET":
                     return self._send(200, {"files": self.server.issues.files(issue_id)})
+                if len(parts) == 4 and parts[3] == "download" and method == "GET":
+                    query = parse_qs(urlsplit(self.path).query)
+                    item = self.server.issues.file(issue_id, (query.get("path") or [""])[0])
+                    if not item.get("download"):
+                        return self._send(404, {"error": "binary file not found"})
+                    from pathlib import Path as _Path
+                    target = (_Path(self.server.store.home) / item.get("storage_path", "")).resolve()
+                    if not target.is_file():
+                        return self._send(404, {"error": "file missing"})
+                    return self._send_bytes(target.read_bytes(), "application/octet-stream",
+                                            _Path(item["path"]).name)
                 if len(parts) == 4 and parts[3] == "file" and method == "GET":
                     query = parse_qs(urlsplit(self.path).query)
                     return self._send(200, self.server.issues.file(

@@ -60,7 +60,8 @@ class IssueStore:
                 CREATE TABLE IF NOT EXISTS issue_files(
                     issue_id TEXT NOT NULL REFERENCES issues(id), path TEXT NOT NULL,
                     sha256 TEXT NOT NULL, size INTEGER NOT NULL, content TEXT NOT NULL,
-                    created_at TEXT NOT NULL, PRIMARY KEY(issue_id,path));
+                    storage TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+                    PRIMARY KEY(issue_id,path));
                 CREATE TABLE IF NOT EXISTS issue_wakeups(
                     id INTEGER PRIMARY KEY, issue_id TEXT NOT NULL REFERENCES issues(id),
                     kind TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
@@ -70,6 +71,10 @@ class IssueStore:
                 CREATE INDEX IF NOT EXISTS issue_state ON issues(state, priority DESC, created_at);
             """)
 
+        file_columns = {row[1] for row in self.store.connect().execute("PRAGMA table_info(issue_files)")}
+        if "storage" not in file_columns:
+            with self.store.connect() as conn:
+                conn.execute("ALTER TABLE issue_files ADD COLUMN storage TEXT NOT NULL DEFAULT ''")
         # Existing instances predate executable checks.
         columns = {row[1] for row in self.store.connect().execute("PRAGMA table_info(issues)")}
         with self.store.connect() as conn:
@@ -790,19 +795,61 @@ class IssueStore:
 
     def files(self, issue_id):
         with self.store.connect() as conn:
-            rows = conn.execute("""SELECT path,sha256,size,created_at FROM issue_files
+            rows = conn.execute("""SELECT path,sha256,size,created_at,storage FROM issue_files
                 WHERE issue_id=? ORDER BY path""", (issue_id,)).fetchall()
-        return [{"path": row[0], "sha256": row[1], "size": row[2], "created_at": row[3]}
+        return [{"path": row[0], "sha256": row[1], "size": row[2], "created_at": row[3],
+                 "binary": bool(row[4]), "download": bool(row[4])}
                 for row in rows]
 
     def file(self, issue_id, path):
         with self.store.connect() as conn:
-            row = conn.execute("""SELECT sha256,size,content,created_at FROM issue_files
+            row = conn.execute("""SELECT sha256,size,content,created_at,storage FROM issue_files
                 WHERE issue_id=? AND path=?""", (issue_id, str(path))).fetchone()
         if row is None:
             raise PolicyError("file not found")
-        return {"path": path, "sha256": row[0], "size": row[1],
-                "content": row[2], "created_at": row[3]}
+        return {"path": path, "sha256": row[0], "size": row[1], "content": row[2],
+                "created_at": row[3], "binary": bool(row[4]), "download": bool(row[4]),
+                "storage_path": row[4]}
+
+    def launcher_upload_file(self, issue_id, launcher_id, claim_token, path, data, sha256=None):
+        import hashlib as _hashlib
+        from pathlib import Path as _Path
+        if not isinstance(data, (bytes, bytearray)) or len(data) > 10 * 1024 * 1024:
+            raise PolicyError("file must be <= 10MB")
+        path = str(path or "")
+        if not path or path.startswith("/") or ".." in path.split("/") or len(path) > 200:
+            raise PolicyError("invalid file path")
+        digest = _hashlib.sha256(bytes(data)).hexdigest()
+        if sha256 and str(sha256) != digest:
+            raise PolicyError("file hash mismatch")
+        with self.store.transaction() as conn:
+            row = conn.execute("""SELECT 1 FROM issues WHERE id=? AND launcher_id=?
+                AND claim_token=? AND state='running'""", (issue_id, launcher_id, claim_token)).fetchone()
+            if row is None:
+                raise PolicyError("launcher claim is not active")
+            try:
+                text = bytes(data).decode("utf-8")
+                is_text = len(text.encode("utf-8")) <= 65536
+            except UnicodeDecodeError:
+                text = ""
+                is_text = False
+            storage = ""
+            if not is_text:
+                directory = _Path(self.store.home) / "issue-files" / issue_id
+                directory.mkdir(parents=True, exist_ok=True)
+                directory.chmod(0o700)
+                target = directory / digest
+                target.write_bytes(bytes(data))
+                target.chmod(0o600)
+                storage = str(target.relative_to(self.store.home))
+            conn.execute("""INSERT INTO issue_files(issue_id,path,sha256,size,content,storage,created_at)
+                VALUES(?,?,?,?,?,?,?) ON CONFLICT(issue_id,path) DO UPDATE SET
+                sha256=excluded.sha256,size=excluded.size,content=excluded.content,
+                storage=excluded.storage""",
+                         (issue_id, path, digest, len(data), text if is_text else "", storage, now()))
+            self._event(conn, issue_id, f"launcher:{launcher_id}", "launcher_file",
+                        {"path": path, "sha256": digest, "size": len(data)})
+        return self.files(issue_id)
 
     def cancel(self, issue_id, actor, reason=""):
         with self.store.transaction() as conn:

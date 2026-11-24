@@ -485,17 +485,25 @@ function boot() {
         const files = await api(`/api/issues/${encodeURIComponent(id)}/files`);
         for (const file of files.files || []) {
           const item = text("li", `${file.path} · ${file.size} B · ${file.sha256}`);
-          const view = text("button", "查看");
-          view.type = "button"; view.className = "btn btn-quiet btn-small";
-          view.addEventListener("click", async () => {
-            try {
-              const data = await api(`/api/issues/${encodeURIComponent(id)}/file?path=${encodeURIComponent(file.path)}`);
-              const preview = $("issue-file-preview");
-              preview.textContent = data.content || "";
-              preview.hidden = false;
-            } catch (error) { status("issue-action-status", error.message, true); }
-          });
-          item.append(text("span", " "), view);
+          if (file.download) {
+            const link = document.createElement("a");
+            link.className = "btn btn-quiet btn-small";
+            link.textContent = "下载";
+            link.href = `/api/issues/${encodeURIComponent(id)}/download?path=${encodeURIComponent(file.path)}`;
+            item.append(text("span", " "), link);
+          } else {
+            const view = text("button", "查看");
+            view.type = "button"; view.className = "btn btn-quiet btn-small";
+            view.addEventListener("click", async () => {
+              try {
+                const data = await api(`/api/issues/${encodeURIComponent(id)}/file?path=${encodeURIComponent(file.path)}`);
+                const preview = $("issue-file-preview");
+                preview.textContent = data.content || "";
+                preview.hidden = false;
+              } catch (error) { status("issue-action-status", error.message, true); }
+            });
+            item.append(text("span", " "), view);
+          }
           $("issue-detail-files").append(item);
         }
       } catch {}
