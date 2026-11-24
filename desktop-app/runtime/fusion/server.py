@@ -659,6 +659,16 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(400, {"error": str(exc) or "invalid JSON body"})
             return self._send(405, {"error": "method not allowed"})
 
+        if path == "/api/maintenance/prune-logs" and method == "POST":
+            session = getattr(self, "_session", None)
+            if not session or session.get("role") != "admin":
+                return self._send(403 if session else 401, {"error": "admin session required"})
+            try:
+                data = json.loads(body or b"{}")
+                return self._send(200, self.server.issues.prune_logs(data.get("days", 30)))
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+
         if path == "/api/issue-policy":
             session = getattr(self, "_session", None)
             if not session or session.get("role") != "admin":
@@ -1081,6 +1091,15 @@ def launcher_worker_loop(httpd, *, interval: float = 10.0) -> None:
             pass
 
 
+def log_retention_loop(httpd, *, interval: float = 6 * 3600) -> None:
+    days = int(os.environ.get("DUTANG_LOG_RETENTION_DAYS", "30"))
+    while not httpd.launcher_stop.wait(interval):
+        try:
+            httpd.issues.prune_logs(days)
+        except Exception:
+            pass
+
+
 def launcher_heartbeat_loop(httpd, *, interval: float = 30.0) -> None:
     from .launcher_client import heartbeat
     while not httpd.launcher_stop.wait(interval):
@@ -1266,6 +1285,9 @@ def serve(home: Path, *, host: str = "127.0.0.1", port: int = 0,
     httpd.launcher_worker_thread = threading.Thread(
         target=launcher_worker_loop, args=(httpd,), daemon=True)
     httpd.launcher_worker_thread.start()
+    httpd.log_retention_thread = threading.Thread(
+        target=log_retention_loop, args=(httpd,), daemon=True)
+    httpd.log_retention_thread.start()
     httpd.lifecycle_stop = threading.Event()
     httpd.lifecycle_supervisor = threading.Thread(
         target=lifecycle_supervisor_loop, args=(httpd,), daemon=True)

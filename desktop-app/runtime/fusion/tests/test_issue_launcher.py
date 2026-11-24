@@ -93,3 +93,19 @@ def test_execution_events_are_structured(tmp_path):
                                 lines.encode())
     events = issues.execution_events(issue["id"])
     assert [e["status"] for e in events] == ["valid", "error"]
+
+
+def test_prune_logs_keeps_artifacts(tmp_path):
+    store = Store(tmp_path / "db")
+    issues = IssueStore(store)
+    code = create_pairing_code(store.home, "owner")
+    paired = claim(store.home, code["code"], "Mac", "macbook", "1")
+    issue = issues.create(title="retention", assignee="gongbu", launcher_id=paired["launcher_id"])
+    _, token = issues.launcher_claim(issue["id"], paired["launcher_id"])
+    issues.launcher_upload_file(issue["id"], paired["launcher_id"], token, "keep.txt", b"keep")
+    issues.launcher_upload_file(issue["id"], paired["launcher_id"], token, "logs/decisions.jsonl", b"{}\n")
+    with issues.store.connect() as conn:
+        conn.execute("UPDATE issue_files SET created_at='2000-01-01T00:00:00+00:00' WHERE path='logs/decisions.jsonl'")
+    result = issues.prune_logs(30)
+    assert result["deleted"] == 1
+    assert [f["path"] for f in issues.files(issue["id"])] == ["keep.txt"]

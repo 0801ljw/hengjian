@@ -844,6 +844,29 @@ class IssueStore:
                            "at": item.get("at"), "error": item.get("error")})
         return events
 
+    def prune_logs(self, days=30, now_value=None):
+        from datetime import datetime, timedelta, timezone
+        from pathlib import Path as _Path
+        days = int(days)
+        if days < 1:
+            raise PolicyError("retention days must be >= 1")
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        with self.store.transaction() as conn:
+            rows = conn.execute("""SELECT issue_id,path,storage FROM issue_files
+                WHERE path LIKE 'logs/%' AND created_at < ?""", (cutoff,)).fetchall()
+            for issue_id, path, storage in rows:
+                conn.execute("DELETE FROM issue_files WHERE issue_id=? AND path=?",
+                             (issue_id, path))
+        removed = 0
+        for _, _, storage in rows:
+            if storage:
+                target = (_Path(self.store.home) / storage).resolve()
+                root = (_Path(self.store.home) / "issue-files").resolve()
+                if root in target.parents:
+                    target.unlink(missing_ok=True)
+            removed += 1
+        return {"deleted": removed, "days": days}
+
     def launcher_upload_file(self, issue_id, launcher_id, claim_token, path, data, sha256=None):
         import hashlib as _hashlib
         from pathlib import Path as _Path
