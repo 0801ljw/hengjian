@@ -910,6 +910,17 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:
                 return self._send(400, {"error": str(exc)})
 
+        if path == "/api/workspace/rename" and method == "POST":
+            if not session:
+                return self._send(403, {"error": "human session required"})
+            try:
+                data = json.loads(body or b"{}")
+                from .workspaces import rename
+                return self._send(200, rename(self.server.store.home, workspace_id,
+                                              session["name"], data.get("name", "")))
+            except Exception as exc:
+                return self._send(400, {"error": str(exc)})
+
         if path == "/api/workspace" and method == "GET":
             if not session:
                 return self._send(403, {"error": "human session required"})

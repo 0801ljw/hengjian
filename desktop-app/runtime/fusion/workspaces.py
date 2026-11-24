@@ -184,3 +184,15 @@ def set_role(instance, workspace, actor, target, role):
         conn.execute("UPDATE workspace_members SET role=? WHERE workspace=? AND user=?",
                      (role, workspace, target))
     return members(instance, workspace)
+
+
+def rename(instance, workspace, actor, name):
+    text = str(name or "").strip()
+    if not (2 <= len(text) <= 60):
+        raise ValueError("workspace name must be 2..60 chars")
+    actor_role = membership(instance, workspace, actor)
+    if actor_role not in ("owner", "admin"):
+        raise ValueError("workspace owner/admin required")
+    with _conn(instance) as conn:
+        conn.execute("UPDATE workspaces SET name=? WHERE id=?", (text, workspace))
+    return get(instance, workspace)

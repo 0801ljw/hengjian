@@ -806,6 +806,8 @@ function boot() {
         select.append(option);
       }
       if (me?.workspace) select.value = me.workspace;
+      const current = (data.workspaces || []).find(item => item.id === (me?.workspace || select.value));
+      if (current) $("workspace-name").value = current.name;
       status("workspace-status", (data.workspaces || []).length
         ? `${data.workspaces.length} 个 Workspace` : "没有 Workspace");
     } catch {
@@ -828,6 +830,16 @@ function boot() {
         method: "POST", body: JSON.stringify({ invite: $("workspace-join-code").value.trim() }),
       });
       location.reload();
+    } catch (error) { status("workspace-status", error.message, true); }
+  }
+
+  async function renameWorkspace() {
+    try {
+      await api("/api/workspace/rename", {
+        method: "POST", body: JSON.stringify({ name: $("workspace-name").value.trim() }),
+      });
+      await refreshWorkspaces();
+      status("workspace-status", "Workspace 已重命名。");
     } catch (error) { status("workspace-status", error.message, true); }
   }
 
@@ -1243,6 +1255,7 @@ function boot() {
   $("workspace-switch").addEventListener("click", switchWorkspace);
   $("workspace-join").addEventListener("click", joinWorkspace);
   $("workspace-leave").addEventListener("click", leaveWorkspace);
+  $("workspace-rename").addEventListener("click", renameWorkspace);
   $("member-add").addEventListener("click", addMember);
   $("member-invite").addEventListener("click", createWorkspaceInvite);
   $("launcher-pair").addEventListener("click", pairLauncher);

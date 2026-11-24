@@ -2,7 +2,7 @@ from fusion.core import Store
 from fusion.issues import IssueStore
 from fusion.tests.test_auth import call, http  # noqa: F401 - fixture
 from fusion.users import UserStore
-from fusion.workspaces import add_member, consume, create_invite, ensure, leave, members, set_role, transfer_owner
+from fusion.workspaces import add_member, consume, create_invite, ensure, leave, members, rename, set_role, transfer_owner
 
 
 def test_new_users_get_distinct_workspaces(tmp_path):
@@ -62,3 +62,15 @@ def test_workspace_role_transfer_and_leave(tmp_path):
     assert meta["owner"] == "bob"
     leave(tmp_path, "w_team", "alice")
     assert {m["name"] for m in members(tmp_path, "w_team")["members"]} == {"bob"}
+
+
+def test_workspace_rename(tmp_path):
+    users = UserStore(tmp_path / "auth")
+    users.add_user("alice", "alice-password-1", "admin", workspace="w_team")
+    ensure(tmp_path, "w_team", "alice")
+    assert rename(tmp_path, "w_team", "alice", "Team Alpha")["name"] == "Team Alpha"
+    try:
+        rename(tmp_path, "w_team", "alice", "x")
+        assert False
+    except ValueError:
+        pass
