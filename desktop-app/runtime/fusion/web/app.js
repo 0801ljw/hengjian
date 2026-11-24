@@ -465,6 +465,16 @@ function boot() {
         });
         $("issue-detail-children").append(item);
       }
+      $("issue-detail-timeline").replaceChildren();
+      try {
+        const timeline = await api(`/api/issues/${encodeURIComponent(id)}/timeline`);
+        for (const event of timeline.timeline || []) {
+          const line = text("li", `${event.at || ""} · ${event.actor || ""} · ${event.action || ""}`);
+          if (event.detail?.state) line.append(text("div", `state: ${event.detail.state}`));
+          if (event.detail?.error) line.append(text("div", String(event.detail.error).slice(0, 300)));
+          $("issue-detail-timeline").append(line);
+        }
+      } catch {}
       $("issue-detail-artifacts").replaceChildren();
       for (const item of issue.result?.artifacts || []) {
         $("issue-detail-artifacts").append(text("li", `${item.path} · ${item.bytes} B · ${item.sha256}`));

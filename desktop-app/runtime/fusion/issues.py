@@ -347,6 +347,22 @@ class IssueStore:
             sql += " ORDER BY priority DESC, created_at"
             return [self.get(item[0]) for item in conn.execute(sql, args)]
 
+    def timeline(self, issue_id):
+        with self.store.connect() as conn:
+            if conn.execute("SELECT 1 FROM issues WHERE id=?", (issue_id,)).fetchone() is None:
+                raise PolicyError("issue not found")
+            rows = conn.execute("""SELECT seq,at,actor,action,detail FROM issue_events
+                WHERE issue_id=? ORDER BY seq""", (issue_id,)).fetchall()
+        events = []
+        for seq, at, actor, action, detail in rows:
+            try:
+                parsed = json.loads(detail) if detail else {}
+            except (TypeError, ValueError):
+                parsed = {}
+            events.append({"seq": seq, "at": at, "actor": actor, "action": action,
+                           "detail": parsed})
+        return events
+
     def comment(self, issue_id, author, body):
         text = str(body or "").strip()
         if not text or len(text) > 12000:

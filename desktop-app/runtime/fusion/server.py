@@ -708,6 +708,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(404, {"error": "issue not found"})
                 if len(parts) == 3 and method == "GET":
                     return self._send(200, issue)
+                if len(parts) == 4 and parts[3] == "timeline" and method == "GET":
+                    return self._send(200, {"timeline": self.server.issues.timeline(issue_id)})
                 if len(parts) != 4 or method != "POST":
                     return self._send(405, {"error": "method not allowed"})
                 action = parts[3]

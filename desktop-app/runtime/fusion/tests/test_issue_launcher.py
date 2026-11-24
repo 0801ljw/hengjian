@@ -19,6 +19,8 @@ def test_issue_can_be_dispatched_to_launcher(tmp_path):
                                     [{"path": "x.txt"}], [{"type": "file_exists", "path": "x.txt"}])
     assert done["state"] == "done"
     assert done["result"]["executed_by"].startswith("launcher:")
+    actions = [item["action"] for item in issues.timeline(issue["id"])]
+    assert "created" in actions and "launcher_claimed" in actions and "launcher_completed" in actions
 
 
 def test_blocked_issue_retry_and_launcher_release(tmp_path):
