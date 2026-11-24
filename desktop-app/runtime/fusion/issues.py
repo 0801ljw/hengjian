@@ -728,6 +728,32 @@ class IssueStore:
                         f"attempts={row[1]} error={str(error)[:500]}")
         return issue
 
+    def retry(self, issue_id, actor):
+        with self.store.transaction() as conn:
+            row = conn.execute("SELECT state FROM issues WHERE id=?", (issue_id,)).fetchone()
+            if row is None:
+                raise PolicyError("issue not found")
+            if row[0] != "blocked":
+                raise PolicyError("only a blocked issue can be retried")
+            conn.execute("""UPDATE issues SET state='queued',attempts=0,retry_at=NULL,claimed_by=NULL,
+                claim_token=NULL,lease_until=NULL,reserved_tokens=0,result=NULL,updated_at=?,
+                revision=revision+1 WHERE id=?""", (now(), issue_id))
+            self._event(conn, issue_id, actor, "retried", {})
+            self._wake(conn, issue_id, "recovered")
+        return self.get(issue_id)
+
+    def launcher_release(self, issue_id, launcher_id, claim_token):
+        with self.store.transaction() as conn:
+            row = conn.execute("""SELECT state FROM issues WHERE id=? AND launcher_id=?
+                AND claim_token=? AND state='running'""", (issue_id, launcher_id, claim_token)).fetchone()
+            if row is None:
+                raise PolicyError("launcher claim is not active")
+            conn.execute("""UPDATE issues SET state='queued',claimed_by=NULL,claim_token=NULL,
+                lease_until=NULL,updated_at=?,revision=revision+1 WHERE id=?""", (now(), issue_id))
+            self._event(conn, issue_id, f"launcher:{launcher_id}", "launcher_released", {})
+            self._wake(conn, issue_id, "recovered")
+        return self.get(issue_id)
+
     def cancel(self, issue_id, actor, reason=""):
         with self.store.transaction() as conn:
             row = conn.execute("SELECT state FROM issues WHERE id=?", (issue_id,)).fetchone()

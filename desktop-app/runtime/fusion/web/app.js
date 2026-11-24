@@ -443,6 +443,8 @@ function boot() {
           ? ` · tokens ${issue.result.usage.total_tokens}/${issue.max_tokens || 100000}` : "")
         + (issue.result?.usage?.cost_usd != null
           ? ` · $${issue.result.usage.cost_usd}` : " · unpriced")
+        + (issue.launcher_id ? ` · launcher ${issue.launcher_id}` : "")
+        + (issue.result?.executed_by ? ` · ${issue.result.executed_by}` : "")
         + (issue.result?.error ? ` · 最近错误：${issue.result.error}` : "");
       $("issue-detail-state").textContent =
         `${issueLabel(issue.state)}${issue.review_approved ? " · 评审已过" : ""}`;
@@ -481,6 +483,8 @@ function boot() {
       $("issue-review-approve").hidden = !canReview;
       $("issue-review-reject").hidden = !canReview;
       $("issue-approve").hidden = !canApprove;
+      $("issue-retry").hidden = !(session && issue.state === "blocked");
+      $("issue-cancel").hidden = !(session && !["done", "cancelled"].includes(issue.state));
       status("issue-action-status", issue.state === "review" && !session
         ? "请以 reviewer/approver 的人类会话登录后评审或签批。"
         : (issue.state === "review" && issue.reviewer && !issue.review_approved
@@ -504,6 +508,27 @@ function boot() {
     } catch (error) {
       status("issue-action-status", error.message, true);
     }
+  }
+
+  async function retryIssue() {
+    if (!openIssue) return;
+    try {
+      await api(`/api/issues/${encodeURIComponent(openIssue.id)}/retry`, { method: "POST", body: "{}" });
+      await openIssueDetail(openIssue.id);
+      await refreshIssues();
+    } catch (error) { status("issue-action-status", error.message, true); }
+  }
+
+  async function cancelIssue() {
+    if (!openIssue) return;
+    if (!confirm("取消这个 Issue？")) return;
+    try {
+      await api(`/api/issues/${encodeURIComponent(openIssue.id)}/cancel`, {
+        method: "POST", body: JSON.stringify({ reason: "manual cancel" }),
+      });
+      await openIssueDetail(openIssue.id);
+      await refreshIssues();
+    } catch (error) { status("issue-action-status", error.message, true); }
   }
 
   async function approveIssue() {
@@ -1273,6 +1298,8 @@ function boot() {
   $("issue-review-approve").addEventListener("click", () => reviewIssue("approve"));
   $("issue-review-reject").addEventListener("click", () => reviewIssue("reject"));
   $("issue-approve").addEventListener("click", approveIssue);
+  $("issue-retry").addEventListener("click", retryIssue);
+  $("issue-cancel").addEventListener("click", cancelIssue);
 
   $("apply-preset").addEventListener("click", async () => {
     const captured = bindingEpoch;

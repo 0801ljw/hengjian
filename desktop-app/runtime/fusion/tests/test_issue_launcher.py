@@ -19,3 +19,20 @@ def test_issue_can_be_dispatched_to_launcher(tmp_path):
                                     [{"path": "x.txt"}], [{"type": "file_exists", "path": "x.txt"}])
     assert done["state"] == "done"
     assert done["result"]["executed_by"].startswith("launcher:")
+
+
+def test_blocked_issue_retry_and_launcher_release(tmp_path):
+    store = Store(tmp_path / "db")
+    issues = IssueStore(store)
+    code = create_pairing_code(store.home, "owner")
+    paired = claim(store.home, code["code"], "Mac", "macbook", "1")
+    issue = issues.create(title="retry", assignee="gongbu", max_attempts=1,
+                          launcher_id=paired["launcher_id"])
+    claimed, token = issues.launcher_claim(issue["id"], paired["launcher_id"])
+    issues.launcher_release(issue["id"], paired["launcher_id"], token)
+    assert issues.get(issue["id"])["state"] == "queued"
+    claimed, token = issues.launcher_claim(issue["id"], paired["launcher_id"])
+    issues.fail(issue["id"], token, "boom", retry=False)
+    assert issues.get(issue["id"])["state"] == "blocked"
+    retried = issues.retry(issue["id"], "human")
+    assert retried["state"] == "queued" and retried["attempts"] == 0
