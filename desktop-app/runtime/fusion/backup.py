@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sqlite3
+import subprocess
 import tarfile
 import tempfile
 import time
@@ -13,7 +15,7 @@ FILES = ("tokens.json", "roles.json", "issue-policy.json", "pricing.json",
 DIRS = ("auth", "issue-files", "issue-runs", "agents")
 
 
-def backup(instance, out_dir, keep=14):
+def backup(instance, out_dir, keep=14, passphrase_file=None):
     instance = Path(instance).resolve()
     out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -37,14 +39,29 @@ def backup(instance, out_dir, keep=14):
                 if path.is_dir():
                     archive.add(path, arcname=name)
     target.chmod(0o600)
+    passphrase_file = passphrase_file or os.environ.get("DUTANG_BACKUP_PASSPHRASE_FILE")
+    if passphrase_file:
+        password = Path(passphrase_file)
+        if not password.is_file():
+            raise ValueError("backup passphrase file not found")
+        encrypted = target.with_name(target.name + ".enc")
+        subprocess.run([
+            "openssl", "enc", "-aes-256-cbc", "-pbkdf2", "-salt",
+            "-in", str(target), "-out", str(encrypted),
+            "-pass", f"file:{password}",
+        ], check=True, capture_output=True)
+        encrypted.chmod(0o600)
+        target.unlink(missing_ok=True)
+        target = encrypted
     cutoff = time.time() - int(keep) * 86400
-    for old in out_dir.glob("fusion-*.tar.gz"):
+    for old in out_dir.glob("fusion-*.tar.gz*"):
         try:
             if old.stat().st_mtime < cutoff:
                 old.unlink()
         except OSError:
             pass
-    return {"path": str(target), "bytes": target.stat().st_size, "keep": int(keep)}
+    return {"path": str(target), "bytes": target.stat().st_size, "keep": int(keep),
+            "encrypted": bool(passphrase_file)}
 
 
 def main(argv=None):
@@ -52,8 +69,9 @@ def main(argv=None):
     parser.add_argument("--home", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--keep", type=int, default=14)
+    parser.add_argument("--passphrase-file", default=None)
     args = parser.parse_args(argv)
-    result = backup(args.home, args.out, args.keep)
+    result = backup(args.home, args.out, args.keep, args.passphrase_file)
     print(result["path"])
     return 0
 

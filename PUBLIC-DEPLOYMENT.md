@@ -152,7 +152,9 @@ PY
 
 - systemd user timer：`fusion-public-backup.timer`
 - 每天 03:30 左右执行（RandomizedDelaySec 15m）
-- 输出：`/home/ljw/backups/fusion-public/fusion-YYYYmmdd-HHMMSS.tar.gz`
+- 输出：`/home/ljw/backups/fusion-public/fusion-YYYYmmdd-HHMMSS.tar.gz.enc`
+- AES-256-CBC + PBKDF2 加密
+- 密钥：`/home/ljw/.config/fusion/backup.passphrase`（0600，勿外传）
 - 权限 0600，保留 14 天
 - 内容：SQLite 在线备份 + auth + tokens + roles + issue-files + sync journal
 - 手动：
@@ -165,7 +167,11 @@ PY
 
 ```bash
 R=$(mktemp -d)
-tar -xzf /home/ljw/backups/fusion-public/fusion-*.tar.gz -C "$R"
+openssl enc -d -aes-256-cbc -pbkdf2 \
+  -in /home/ljw/backups/fusion-public/fusion-*.tar.gz.enc \
+  -out "$R/backup.tar.gz" \
+  -pass file:/home/ljw/.config/fusion/backup.passphrase
+tar -xzf "$R/backup.tar.gz" -C "$R"
 python3 - "$R/fusion.sqlite3" <<'PY'
 import sqlite3,sys
 print(sqlite3.connect(sys.argv[1]).execute("PRAGMA quick_check").fetchone()[0])
@@ -173,4 +179,4 @@ PY
 rm -rf "$R"
 ```
 
-备份包含 token/认证材料，不要上传到公开位置。
+备份包含 token/认证材料，不要上传到公开位置；密钥丢失则备份不可恢复。
