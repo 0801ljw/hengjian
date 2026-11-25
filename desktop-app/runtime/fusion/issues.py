@@ -878,7 +878,8 @@ class IssueStore:
                                   (issue_id,)).fetchone()[0]
         if int(total) + len(data) > 50 * 1024 * 1024:
             raise PolicyError("issue file quota exceeded (50MB)")
-        if not path or path.startswith("/") or ".." in path.split("/") or len(path) > 200:
+        if (not path or path.startswith("/") or ".." in path.split("/") or len(path) > 200
+                or "\\" in path or any(ord(char) < 32 for char in path)):
             raise PolicyError("invalid file path")
         digest = _hashlib.sha256(bytes(data)).hexdigest()
         if sha256 and str(sha256) != digest:

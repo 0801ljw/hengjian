@@ -191,13 +191,18 @@ class Handler(BaseHTTPRequestHandler):
                 return value
         return ""
 
+    def _secure_cookie(self) -> str:
+        proto = str(self.headers.get("X-Forwarded-Proto") or "").lower()
+        cf_visitor = str(self.headers.get("CF-Visitor") or "").lower()
+        return " Secure" if proto == "https" or '"scheme":"https"' in cf_visitor else ""
+
     def _session_cookie_header(self, token: str) -> dict:
-        return {"Set-Cookie": "%s=%s; Path=/; HttpOnly; SameSite=Strict; Max-Age=%d"
-                % (SESSION_COOKIE, token, SESSION_COOKIE_TTL)}
+        return {"Set-Cookie": "%s=%s; Path=/; HttpOnly; SameSite=Strict%s; Max-Age=%d"
+                % (SESSION_COOKIE, token, self._secure_cookie(), SESSION_COOKIE_TTL)}
 
     def _clear_session_cookie_header(self) -> dict:
-        return {"Set-Cookie": "%s=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0"
-                % SESSION_COOKIE}
+        return {"Set-Cookie": "%s=; Path=/; HttpOnly; SameSite=Strict%s; Max-Age=0"
+                % (SESSION_COOKIE, self._secure_cookie())}
 
     def _csrf_ok(self) -> bool:
         """cookie 会话的状态变更必须带自定义头。
@@ -214,7 +219,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        import re as _re
+        safe_name = _re.sub(r"[^A-Za-z0-9._-]", "_", str(filename))[:120] or "download"
+        self.send_header("Content-Disposition", f'attachment; filename="{safe_name}"')
         self.end_headers()
         self.wfile.write(data)
 

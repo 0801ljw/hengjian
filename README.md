@@ -73,6 +73,8 @@ cd dutang-dsh-plugin
 - [操作执行手册](OPERATIONS-RUNBOOK.md)
 - [桌面 App 构建说明](desktop-app/README.md)
 
+- [安全说明](SECURITY.md)
+
 ## License
 
 MIT
