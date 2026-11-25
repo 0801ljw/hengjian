@@ -106,8 +106,8 @@ PY
 
 - 云空间：设置 →「已连接 Launcher」→ 生成配对码
 - 本机 App：设置 →「连接云空间」→ 输入云空间 URL + 配对码
-- 配对后本机每 30s 心跳；云空间可看到/移除 Launcher
-- 当前只做配对/心跳，未下发任务或同步文件
+- 配对后每 30s 心跳；云空间可查看/移除 Launcher
+- 当前仅配对/心跳，未下发任务或同步文件
 
 ## 云任务下发（B 阶段）
 
@@ -129,12 +129,6 @@ PY
 - 创建后 state=queued，Launcher 拉取/领取
 - 本机「云任务」面板只读；自动执行需 `DUTANG_LAUNCHER_EXECUTE=1`
 
-## 执行云任务
-
-- 本机「云任务」→「执行」/「执行下一条」
-- 执行前检查本机 Agent 绑定；未配置不领取
-- 自动执行仍可 `DUTANG_LAUNCHER_EXECUTE=1`
-
 ## Workspace 隔离
 
 - 新账号自动获得 `w_<hash>` workspace
@@ -154,9 +148,29 @@ PY
 - owner 不能被移除；跨 workspace 不可见
 - 暂不支持切换/加入多个团队
 
-## 多 Workspace
+## 自动备份
 
-- 设置 →「Workspace」切换/加入
-- 一个账号可加入多个 Workspace
-- primary membership 登录时自动补齐
-- 没有退出/转让 owner
+- systemd user timer：`fusion-public-backup.timer`
+- 每天 03:30 左右执行（RandomizedDelaySec 15m）
+- 输出：`/home/ljw/backups/fusion-public/fusion-YYYYmmdd-HHMMSS.tar.gz`
+- 权限 0600，保留 14 天
+- 内容：SQLite 在线备份 + auth + tokens + roles + issue-files + sync journal
+- 手动：
+  ```bash
+  systemctl --user start fusion-public-backup.service
+  systemctl --user list-timers fusion-public-backup.timer
+  ```
+
+恢复演练：
+
+```bash
+R=$(mktemp -d)
+tar -xzf /home/ljw/backups/fusion-public/fusion-*.tar.gz -C "$R"
+python3 - "$R/fusion.sqlite3" <<'PY'
+import sqlite3,sys
+print(sqlite3.connect(sys.argv[1]).execute("PRAGMA quick_check").fetchone()[0])
+PY
+rm -rf "$R"
+```
+
+备份包含 token/认证材料，不要上传到公开位置。

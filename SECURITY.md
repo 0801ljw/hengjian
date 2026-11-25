@@ -37,3 +37,9 @@
 - 不要把 `tokens.json`、`auth/`、`paperclip.env` 放进仓库
 - 定期轮换机器 token 和 Launcher token
 - 对公开实例设置独立数据目录，不复用私有实例
+
+## 自动备份
+
+- 公网实例每日 03:30 备份，保留 14 天
+- 备份含 auth/tokens，权限 0600，不能公开
+- 定期做 restore drill
