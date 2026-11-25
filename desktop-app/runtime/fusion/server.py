@@ -1069,6 +1069,14 @@ class Handler(BaseHTTPRequestHandler):
         if session:
             allowed = ROLE_METHODS.get(session["role"], set())
             if method not in allowed:
+                workspace_scoped = path.startswith(("/api/issues", "/api/launchers",
+                                                    "/api/workspace", "/api/launcher",
+                                                    "/api/members", "/api/alerts"))
+                if workspace_scoped:
+                    from .workspaces import membership
+                    if membership(self.server.store.home, workspace_id, session["name"]) in ("owner", "admin"):
+                        allowed = {"GET", "POST", "DELETE", "PUT", "PATCH"}
+            if method not in allowed:
                 return self._send(403, {"error": "forbidden for role"})
             if path.startswith("/api/users") and session["role"] != "admin":
                 return self._send(403, {"error": "admin only"})

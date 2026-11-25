@@ -74,3 +74,14 @@ def test_workspace_rename(tmp_path):
         assert False
     except ValueError:
         pass
+
+
+def test_workspace_owner_can_write_even_with_viewer_global_role(http):
+    httpd, base = http
+    httpd.users.add_user("viewerowner", "viewerowner-password-1", "viewer", workspace="w_team")
+    ensure(httpd.store.home, "w_team", "viewerowner")
+    _, login = call(base, "/api/login", method="POST", body={
+        "username": "viewerowner", "password": "viewerowner-password-1"})
+    status, issue = call(base, "/api/issues", login["session"], "POST", {
+        "title": "owner write", "assignee": "gongbu"})
+    assert status == 201 and issue["state"] == "queued"
